@@ -1,64 +1,73 @@
-## intersystems-objectscript-template
-This is a template for InterSystems ObjectScript Github repository.
-The template goes also with a few files which let you immediately compile your ObjectScript files in InterSystems IRIS Community Edition in a docker container
+# FastHTTP
 
-## Prerequisites
-Make sure you have [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and [Docker desktop](https://www.docker.com/products/docker-desktop) installed.
+FastHTTP is a lightweight wrapper for `%Net.HttpRequest` in InterSystems IRIS, designed to simplify HTTP requests with a concise API and built-in JSON support.
 
-## Installation 
+## Installation
 
-Clone/git pull the repo into any local directory
+### With Docker
 
-```
-$ git clone https://github.com/intersystems-community/objectscript-docker-template.git
-```
+Clone the repository and run:
 
-Open the terminal in this directory and run:
-
-```
-$ docker-compose build
+```bash
+docker-compose up -d
 ```
 
-3. Run the IRIS container with your project:
+### With ZPM
 
+```objectscript
+zpm "install fast-http"
 ```
-$ docker-compose up -d
+
+## Usage
+
+### Simple GET Request
+
+```objectscript
+Set response = ##class(dc.http.FastHTTP).DirectGet("url=https://httpbin.org/get")
+write response.%ToJSON()
 ```
 
-## How to Test it
+### POST Request with JSON Body
 
-Open IRIS terminal:
-
+```objectscript
+Set body = {"name": "Iris", "type": "Database"}
+Set response = ##class(dc.http.FastHTTP).DirectPost("url=https://httpbin.org/post", body)
+write response.%ToJSON()
 ```
-$ docker-compose exec iris iris session iris
-USER>write ##class(dc.sample.ObjectScript).Test()
+
+### PUT & DELETE
+
+```objectscript
+// PUT
+Set response = ##class(dc.http.FastHTTP).DirectPut("url=https://httpbin.org/put", {"update": 1})
+
+// DELETE
+Set response = ##class(dc.http.FastHTTP).DirectDelete("url=https://httpbin.org/delete")
 ```
-## How to start coding
-This repository is ready to code in VSCode with ObjectScript plugin.
-Install [VSCode](https://code.visualstudio.com/), [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [ObjectScript](https://marketplace.visualstudio.com/items?itemName=daimor.vscode-objectscript) plugin and open the folder in VSCode.
-Open /src/cls/PackageSample/ObjectScript.cls class and try to make changes - it will be compiled in running IRIS docker container.
-![docker_compose](https://user-images.githubusercontent.com/2781759/76656929-0f2e5700-6547-11ea-9cc9-486a5641c51d.gif)
 
-Feel free to delete PackageSample folder and place your ObjectScript classes in a form
-/src/Package/Classname.cls
-[Read more about folder setup for InterSystems ObjectScript](https://community.intersystems.com/post/simplified-objectscript-source-folder-structure-package-manager)
+### Configuration String
 
-The script in Installer.cls will import everything you place under /src into IRIS.
+FastHTTP uses a configuration string to set up the request. You can pass it to the `FastHTTP` constructor or the `Direct...` methods.
 
+Format: `"key=value,key2=value2"`
 
-## What's inside the repository
+Supported keys:
+- `url`: The full URL to send the request to.
+- `Header_<Name>`: Sets a request header. Ex: `Header_Authorization=Bearer 123`
+- `stream_mode`: Resource ID for streaming responses (see Advanced Usage, will be explained later /*todo*/).
 
-### Dockerfile
+Example with headers:
 
-The simplest Dockerfile which starts IRIS and imports code from /src folder into it.
-Use the related docker-compose.yml to easily setup additional parametes like port number and where you map keys and host folders.
+```objectscript
+Set config = "url=https://api.example.com/data,Header_Authorization=Bearer mytoken,Header_Content-Type=application/json"
+Set response = ##class(dc.http.FastHTTP).DirectGet(config)
+```
 
+### Accessing the Client Instance
 
-### .vscode/settings.json
+The `Direct...` methods also return the `client` instance as an output parameter if you need to access the underlying `%Net.HttpRequest` or response metadata.
 
-Settings file to let you immediately code in VSCode with [VSCode ObjectScript plugin](https://marketplace.visualstudio.com/items?itemName=daimor.vscode-objectscript))
-
-### .vscode/launch.json
-Config file if you want to debug with VSCode ObjectScript
-
-[Read about all the files in this article](https://community.intersystems.com/post/dockerfile-and-friends-or-how-run-and-collaborate-objectscript-projects-intersystems-iris)
+```objectscript
+Set response = ##class(dc.http.FastHTTP).DirectGet("url=https://httpbin.org/get", , .client)
+Write "Status Code: ", client.HttpRequest.HttpResponse.StatusCode
+```
