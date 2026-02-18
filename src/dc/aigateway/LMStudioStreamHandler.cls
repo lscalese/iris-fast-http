@@ -13,7 +13,6 @@ Method OnMessage(message As %String) As %Boolean
         Set msgJsonItem = {}.%FromJSON(utf8Item)
         If msgJsonItem.type = "chat.end" {
             Set ..endMessage = msgJsonItem
-            Do ..CleanSystemEvent(..ResourceId)
             Return $$$NO
         }
         ElseIf msgJsonItem.type = "message.delta" {

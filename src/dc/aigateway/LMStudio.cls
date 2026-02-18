@@ -1,3 +1,5 @@
+Include FastHTTP
+
 /// usage:
 /// Initialize settings with ##class(dc.aigateway.LMStudioSettings).SetSettings(baseUrl, apiKey, modelName)
 /// Call ##class(dc.aigateway.LMStudio).ListModels() to show available models
@@ -19,7 +21,6 @@ Parameter UNLOADMODELENDPOINT = "/api/v1/models/unload";
 
 ClassMethod Chat(message As %DynamicObject, Output client As dc.http.FastHTTP) As %DynamicObject
 {
-    #define f(%x)  ##function($replace($replace(##quote(%x),"{","""_"),"}","_"""))
     Set settings = ##class(dc.aigateway.LMStudioSettings).GetInstance()
     Return ##class(dc.http.FastHTTP).DirectPost($$$f("url={settings.BaseUrl_..#CHATENDPOINT},header_Authorization=Bearer {settings.ApiKey}"), message, .client)
 }
@@ -39,7 +40,7 @@ ClassMethod LoadModel(instanceId As %String, Output client As dc.http.FastHTTP) 
 ClassMethod ListModels(Output client As dc.http.FastHTTP) As %DynamicObject
 {
     Set settings = ##class(dc.aigateway.LMStudioSettings).GetInstance()
-    Return ##class(dc.http.FastHTTP).DirectGet($$$f("url={settings.BaseUrl_..#LISTMODELSENDPOINT},Header_Authorization=Bearer {settings.ApiKey}"), .client)
+    Return ##class(dc.http.FastHTTP).DirectGet($$$f("url={settings.BaseUrl_..#LISTMODELSENDPOINT},Header_Authorization=Bearer {settings.ApiKey}"), , .client)
 }
 
 ClassMethod ChatStreamMode(message As %DynamicObject, streamHandler As dc.aigateway.LMStudioStreamHandler) As %DynamicObject

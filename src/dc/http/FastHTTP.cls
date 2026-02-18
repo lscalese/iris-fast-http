@@ -1,7 +1,11 @@
+Include FastHTTP
+
 Class dc.http.FastHTTP Extends %RegisteredObject
 {
 
 Parameter STRINGSEPARATOR = ",";
+
+Parameter ESCAPECHAR = "\";
 
 Parameter DEFAULTSSL = "DefaultSSL";
 
@@ -97,11 +101,15 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
     Set config = {}, headers = {}
     Do ..initMapLowerProperties(.mapLowerProperties)
 
-    Set len = $Length(pConfigStr, separator)
-    For i=1:1:len {
-        Set pair = $Piece(pConfigStr, separator, i)
+    ;Set len = $Length(pConfigStr, separator)
+    ;For i=1:1:len {
+    ;    Set pair = $Piece(pConfigStr, separator, i)
+    ;    Continue:pair=""
+    Set atEnd = 0
+    While 'atEnd {
+        Set pair = ..NextPair(pConfigStr, .position, .atEnd)
         Continue:pair=""
-        
+
         Set key = $ZStrip($Piece(pair, "=", 1), "<>W") // Trim whitespace
         Set val = $Piece(pair, "=", 2, *) // Le reste est la valeur
         
@@ -138,6 +146,39 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
     }
     
     Return config
+}
+
+ClassMethod NextPair(configString As %String, ByRef position As %Integer = 1, Output atEnd As %Boolean = 0) As %String
+{
+    If position > $Length(configString) {
+        Set atEnd = 1
+        Return ""
+    }
+    
+    Set pair = "",  separator = ..#STRINGSEPARATOR, escapeChar = ..#ESCAPECHAR
+
+    #define isEscapedSeparator (char = escapeChar && (nextChar = separator))
+    #define isDoubleEscaping (char = escapeChar && (nextChar = escapeChar))
+    
+    For i=position:1:$Length(configString) {
+        Set char = $Extract(configString, i)
+        Set nextChar = $Extract(configString, i+1)
+        If $$$isEscapedSeparator || $$$isDoubleEscaping {
+            Set pair = pair _ nextChar
+            Set i = i + 1
+            Continue
+        }
+        If char = separator {
+            Set i = i + 1
+            Quit
+        }
+        Set pair = pair _ char
+    }
+
+    Set position = i
+    Set atEnd = (position >= $Length(configString))
+
+    Return pair
 }
 
 /// Configure l'URL de base et prépare la requête (serveur, port, https)
@@ -266,6 +307,14 @@ ClassMethod initMapLowerProperties(ByRef mapLowerProperties) As %Status [ Intern
     Set mapLowerProperties("writerawmode") = "WriteRawMode"
     Set mapLowerProperties("writetimeout") = "WriteTimeout"
     Return $$$OK
+}
+
+ClassMethod t()
+{
+    
+    S a = "abc,def\ghi"
+    S b = "application/json"
+    w $$$fe("url={a},Header_Test={b}")
 }
 
 }
