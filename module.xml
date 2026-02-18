@@ -3,7 +3,8 @@
   <Document name="fast-http.ZPM">
     <Module>
       <Name>fast-http</Name>
-      <Version>0.0.1</Version>
+      <Version>1.0.0</Version>
+      <Description>Fast HTTP wrapper for %Net.HttpRequest</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="dc.http.PKG"/>
