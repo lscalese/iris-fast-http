@@ -212,6 +212,16 @@ Method Seturl(pUrl As %String) As %Status
     If $Get(components("path")) '= "" {
         Set ..HttpRequest.Location = components("path")    
     }
+
+    If $Get(components("query")) '= "" {
+        Set split = $ListFromString(components("query"), "&"), ptr = 0
+        While $ListNext(split, ptr, param) {
+            Set name = $Piece(param, "=", 1)
+            Continue:name=""
+            Set value = $Piece(param, "=", 2)
+            Do ..HttpRequest.InsertParam(name, value)
+        }
+    }
     
     Return $$$OK
 }
