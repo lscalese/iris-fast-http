@@ -14,3 +14,11 @@ services:
       - 53773
     volumes:
       - ./:/home/irisowner/dev
+    depends_on:
+      - httpbin
+
+  # A simple HTTP service used for integration testing of the FastHTTP class
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - "9292:80"
