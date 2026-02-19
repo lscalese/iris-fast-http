@@ -74,7 +74,7 @@ ClassMethod Session() As %Status
     Set messageTemplate = {
         "model": "mistralai/ministral-3-3b", 
         "input": "",
-        "system_prompt": "Votre interlocuteur est un roi, parlez lui avec respect et politesse.",
+        "system_prompt": "",
         "temperature": 0.7,
         "stream": true
     }

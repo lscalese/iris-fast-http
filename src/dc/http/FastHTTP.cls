@@ -9,6 +9,11 @@ Parameter ESCAPECHAR = "\";
 
 Parameter DEFAULTSSL = "DefaultSSL";
 
+Parameter SSLConfigCachePrefix = "SSLConfigExists:";
+
+/// characters that can be escaped in the config string.
+Parameter VALIDESCAPEDCHARS = ",\";
+
 Property HttpRequest As %Net.HttpRequest [ InitialExpression = {##class(%Net.HttpRequest).%New()} ];
 
 /// Ex: Set client = ##class(dc.http.FastHTTP).%New("url=http://example.com/api,Header_Authorization=Bearer <yourkey>")
@@ -70,7 +75,7 @@ Method ApplyConfig(configString As %String = "") As %Status
         Set ..HttpRequest.SSLConfiguration = ..#DEFAULTSSL
     }
 
-    If ..HttpRequest.Https, '$Get(%zSSLConfigExists(..HttpRequest.SSLConfiguration), $$$NO) {
+    If ..HttpRequest.Https, ..GetCacheData(..#SSLConfigCachePrefix _ ..HttpRequest.SSLConfiguration) '= $$$YES {
         Do ..CreateSSLConfiguration(..HttpRequest.SSLConfiguration)
     }
 
@@ -148,6 +153,12 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
     Return config
 }
 
+/// return the next key=value pair from the config string, handling escaped separators
+/// position is updated to the start of the next pair, and atEnd is set to 1 if we've reached the end of the string
+/// Ex: for input "url=http://example.com/api,Header_Authorization=Bearer Token,Header_Content-Type=application/json", 
+/// the first call returns "url=http://example.com/api" and sets position to the start of "Header_Authorization", 
+/// the second call returns "Header_Authorization=Bearer Token"
+/// Escaping example : "key1=1,2,3,key2=abc\\def" return "key1=1,2,3" and "key2=abc\def"
 ClassMethod NextPair(configString As %String, ByRef position As %Integer = 1, Output atEnd As %Boolean = 0) As %String
 {
     If position > $Length(configString) {
@@ -157,26 +168,28 @@ ClassMethod NextPair(configString As %String, ByRef position As %Integer = 1, Ou
     
     Set pair = "",  separator = ..#STRINGSEPARATOR, escapeChar = ..#ESCAPECHAR
 
-    #define isEscapedSeparator (char = escapeChar && (nextChar = separator))
-    #define isDoubleEscaping (char = escapeChar && (nextChar = escapeChar))
+    #define isValidEscapedChar    (char = escapeChar && ($Find(..#VALIDESCAPEDCHARS, nextChar) > 0))
     
-    For i=position:1:$Length(configString) {
-        Set char = $Extract(configString, i)
-        Set nextChar = $Extract(configString, i+1)
-        If $$$isEscapedSeparator || $$$isDoubleEscaping {
+    Set strLen = $Length(configString)
+    While (position <= strLen) {
+        Set char = $Extract(configString, position)
+        Set nextChar = $Extract(configString, position+1)
+        If $$$isValidEscapedChar {
+            // Consume the escape character and the following character as a literal
             Set pair = pair _ nextChar
-            Set i = i + 1
+            Do $Increment(position, 2)
             Continue
         }
         If char = separator {
-            Set i = i + 1
+            // Move past the separator and finish this pair
+            Do $Increment(position)
             Quit
         }
         Set pair = pair _ char
+        Do $Increment(position)
     }
-
-    Set position = i
-    Set atEnd = (position >= $Length(configString))
+    
+    Set atEnd = position > strLen
 
     Return pair
 }
@@ -280,7 +293,7 @@ ClassMethod CreateSSLConfiguration(Name As %String = "DefaultSSL") As %Status
     If '##class(Security.SSLConfigs).Exists(Name) {
         Set sc = ##class(Security.SSLConfigs).Create(Name)
     }
-    Set:$$$ISOK(sc) %zSSLConfigExists(Name) = $$$YES
+    Do:$$$ISOK(sc) ..SetCacheData(..#SSLConfigCachePrefix _ Name, $$$YES)
     Return sc
 }
 
@@ -290,14 +303,13 @@ ClassMethod initMapLowerProperties(ByRef mapLowerProperties) As %Status [ Intern
     Set mapLowerProperties("forcereusedevice") = "ForceReuseDevice"
     Set mapLowerProperties("localinterface") = "LocalInterface"
     Set mapLowerProperties("location") = "Location"
-    Set mapLowerProperties("nodefaultcontentcharset") = "NoDefaultContentCharset "
+    Set mapLowerProperties("nodefaultcontentcharset") = "NoDefaultContentCharset"
     Set mapLowerProperties("opentimeout") = "OpenTimeout"
     Set mapLowerProperties("postgzip") = "PostGzip"
     Set mapLowerProperties("proxyhttps") = "ProxyHTTPS"
     Set mapLowerProperties("proxyport") = "ProxyPort"
     Set mapLowerProperties("proxyserver") = "ProxyServer"
     Set mapLowerProperties("readrawmode") = "ReadRawMode"
-    Set mapLowerProperties("readtimeout") = "ReadTimeout"
     Set mapLowerProperties("requestheadercharset") = "RequestHeaderCharset"
     Set mapLowerProperties("returngzipresponse") = "ReturnGzipResponse"
     Set mapLowerProperties("sslcheckserveridentity") = "SSLCheckServerIdentity"
@@ -309,12 +321,19 @@ ClassMethod initMapLowerProperties(ByRef mapLowerProperties) As %Status [ Intern
     Return $$$OK
 }
 
-ClassMethod t()
+ClassMethod SetCacheData(key As %String, value As %String)
 {
-    
-    S a = "abc,def\ghi"
-    S b = "application/json"
-    w $$$fe("url={a},Header_Test={b}")
+    Set %zFastHTTPCache(key) = value
+}
+
+ClassMethod GetCacheData(key As %String) As %String [ CodeMode = expression ]
+{
+$Get(%zFastHTTPCache(key))
+}
+
+ClassMethod ClearCache()
+{
+    Kill %zFastHTTPCache
 }
 
 }
