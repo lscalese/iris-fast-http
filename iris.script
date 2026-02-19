@@ -13,5 +13,6 @@
     zpm "install passwordless"
     ; importing the source code of the repository as ZPM module
     zn "USER"
+    Set ^dc.http("RUNINTEGRATION") = 1 ; alloww running integration tests (see tests/dc/http/Integration.cls)
     zpm "load /home/irisowner/dev -v":1:1
     halt

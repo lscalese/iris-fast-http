@@ -10,6 +10,7 @@ Method OnMessage(message As %String) As %Boolean
     While $ListNext(splitMsg, ptr, item) {
         Continue:item=""
         Set utf8Item = $ZConvert($Piece(item, "data: ", 2 , *),"I","UTF8")
+        Continue:utf8Item=""
         Set msgJsonItem = {}.%FromJSON(utf8Item)
         If msgJsonItem.type = "chat.end" {
             Set ..endMessage = msgJsonItem

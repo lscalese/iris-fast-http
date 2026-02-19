@@ -218,7 +218,7 @@ Method Seturl(pUrl As %String) As %Status
         While $ListNext(split, ptr, param) {
             Set name = $Piece(param, "=", 1)
             Continue:name=""
-            Set value = $Piece(param, "=", 2)
+            Set value = $Piece(param, "=", 2, *)
             Do ..HttpRequest.InsertParam(name, value)
         }
     }

@@ -101,7 +101,7 @@ Set jsonResponse = {}.%FromJSON(req.HttpResponse.Data)
 
 ```objectscript
 Set body = {"name": "Test"}
-Set response = ##class(dc.http.FastHTTP).DirectPost("url=https://api.example.com/v1/resource,header_Authorization=Bearer mytoken", body)
+Set response = ##class(dc.http.FastHTTP).DirectPost("url=https://api.example.com/v1/resource,header_Authorization=Bearer mytoken", body, .client)
 ```
 
 FastHTTP:  
@@ -113,6 +113,8 @@ La chaîne de configuration permet de définir automatiquement toute propriété
 ```
 "SSLConfiguration=MySSLConfig,header_Content-Type=application/json"
 ```
+
+Le code est ainsi nettement plus concis. Sur un de mes précédents projets nécessitant une importante génération de code pour les requêtes HTTP, l'utilisation de cette bibliothèque aurait apporté des facilités non négligeable.  
 
 ## La macro `$$$f`
 
@@ -131,7 +133,7 @@ Elle transforme une chaîne comme `"url={monUrl}"` en une expression ObjectScrip
 
 ### Exemple d'utilisation
 
-Sans `$$$f`, la concaténation de variables dans la configuration donne :
+Sans `$$$f`, la concaténation de variables dans la configuration donne:
 
 ```objectscript
 Set baseUrl = "https://api.example.com"
@@ -140,7 +142,7 @@ Set config = "url=" _ baseUrl _ "/users,header_Authorization=Bearer " _ token
 Set resp = ##class(dc.http.FastHTTP).DirectGet(config)
 ```
 
-Avec `$$$f`, le code devient beaucoup plus lisible :
+Avec `$$$f`, le code devient beaucoup plus lisible:
 
 ```objectscript
 // Assurez-vous que la macro est définie ou incluse
@@ -151,11 +153,21 @@ Set resp = ##class(dc.http.FastHTTP).DirectGet($$$f("url={baseUrl}/users,header_
 
 Elle a été introduite pour maintenir la philosophie de "configuration en une ligne" de FastHTTP, même lorsque les valeurs (URLs, tokens) proviennent de variables, propriété objet ou même de méthode. Elle évite une multitude de guillemets typique de la concaténation.  En tant que macro, elle n’est pas directement utilisable en terminal, mais elle reste très pratique en développement.  N'hésitez pas à la copier dans votre ".inc" personnel.  Une version équivalente fournie nativement par IRIS serait d’ailleurs très appréciable.  
 
+### La variante `$$$fe`
+
+Au travers des exemples dans ce document vous aurez compris que la virgule sert de séparateur pour les paires "clé=valeur" dans les chaînes de configuration ex: "key1=value1,key2=value,key3=value3".  Si une valeur contient elle-même une virgule, celle-ci doit être échappée : `\,`.   La macro `$$$fe` combine les capacités d'interpolation de `$$$f` avec un échappement automatique des caractères réservés contenus dans les variables: 
+
+```objectscript
+Set value = "1,2,3"
+Set string = $$$fe("key1={value},key2=test")  ; --> "key1=1\,2\,3,key2=test"
+```
+
 ## Sources
 
 Tout est disponible sur le GitHub [iris-fast-http](https://github.com/lscalese/iris-fast-http) ou via `zpm "fast-http"`.  
 
 ## Conclusion
 
-FastHTTP est une abstraction légère qui modernise l'expérience développeur pour les interactions HTTP dans IRIS. En combinant une API fluide, une configuration textuelle et des aides syntaxiques avec la macro `$$$f`, elle permet de se concentrer sur la logique métier plutôt que sur la "plomberie réseau".  Destinés aux développeurs ObjectScript cherchant à intégrer rapidement des API REST.  
+FastHTTP est une abstraction légère qui modernise l’expérience des développeurs ObjectScript pour les interactions HTTP dans IRIS. Grâce à une API fluide, une configuration textuelle et des raccourcis syntaxiques fournis par les macros `$$$f` et `$$$fe`, elle réduit la complexité pour laisser la place à la logique métier.  
+Idéale pour l’intégration rapide d’API REST, elle cible  les cas d’usage simples basés sur des query parameters et des échanges JSON.  
 

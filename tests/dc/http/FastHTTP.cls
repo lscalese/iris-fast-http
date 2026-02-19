@@ -157,6 +157,21 @@ Method TestSetUrl()
     // Test HTTP with default port
     Do client.Seturl("http://basic.com")
     Do $$$AssertEquals(client.HttpRequest.Port, 80, "Default port for http should be 80")
+
+    // Test URL with query parameters
+    Set client = ##class(dc.http.FastHTTP).%New()
+    Do client.Seturl("http://search.com/find?q=iris&lang=fr&multi=1&multi=2")
+    Do $$$AssertEquals(client.HttpRequest.Server, "search.com")
+    Do $$$AssertEquals(client.HttpRequest.Location, "/find")
+    Do $$$AssertEquals(client.HttpRequest.GetParam("q"), "iris", "Query parameter 'q' should be 'iris'")
+    Do $$$AssertEquals(client.HttpRequest.GetParam("lang"), "fr", "Query parameter 'lang' should be 'fr'")
+    Do $$$AssertEquals(client.HttpRequest.GetParam("multi", ,1), "1", "First 'multi' parameter should be 1")
+    Do $$$AssertEquals(client.HttpRequest.GetParam("multi", ,2), "2", "Second 'multi' parameter should be 2")
+
+    // Test URL with complex query parameter (containing =)
+    Set client = ##class(dc.http.FastHTTP).%New()
+    Do client.Seturl("http://search.com/find?token=abc=def")
+    Do $$$AssertEquals(client.HttpRequest.GetParam("token"), "abc=def", "Query parameter 'token' should be 'abc=def'")
 }
 
 Method TestApplyConfig()
