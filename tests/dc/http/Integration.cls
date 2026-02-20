@@ -6,10 +6,34 @@ Class tests.dc.http.Integration Extends %UnitTest.TestCase
 /// Set this parameter to 1 to run integration tests
 Parameter RUNINTEGRATION = {$Get(^dc.http("RUNINTEGRATION"),0)};
 
+Method TestDirectGet()
+{
+    // Skip if integration tests are not enabled (to avoid failure if httpbin is not reachable)
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestDirectGet because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
+    }
+
+    Set config = "url=http://httpbin/get?test=directget,timeout=5"
+    Try {
+        Set response = ##class(dc.http.FastHTTP).DirectGet(config, , .client)
+        
+        Do $$$AssertStatusOK($$$OK, "DirectGet should execute without throwing")
+        Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "Status code should be 200")
+        
+        // httpbin returns query params in 'args' field
+        Do $$$AssertEquals(response.args.test, "directget", "Response should contain our query parameter")
+    } Catch ex {
+        Do $$$AssertStatusOK(ex.AsStatus(), "DirectGet should not throw an exception: " _ ex.DisplayString())
+    }
+}
+
 Method TestIntegrationGET()
 {
-    If '..#RUNINTEGRATION = 0 {
-       Return
+    // Skip if integration tests are not enabled (to avoid failure if httpbin is not reachable)
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestIntegrationGET because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
     }
 
     Set client = ##class(dc.http.FastHTTP).%New()
@@ -32,8 +56,10 @@ Method TestIntegrationGET()
 
 Method TestIntegrationPOST()
 {
-    If '..#RUNINTEGRATION = 0 {
-       Return
+    // Skip if integration tests are not enabled (to avoid failure if httpbin is not reachable)
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestIntegrationPOST because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
     }
     Set client = ##class(dc.http.FastHTTP).%New()
     
@@ -50,6 +76,58 @@ Method TestIntegrationPOST()
     Do client.HttpRequest.HttpResponse.Data.Rewind()
     Set response = client.HttpRequest.HttpResponse.Data.Read()
     Do $$$AssertTrue(response [ """hello"": ""world""", "Response should contain our JSON body")
+}
+
+Method TestDirectPost()
+{
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestDirectPost because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
+    }
+    
+    Set config = "url=http://httpbin/post,timeout=5"
+    Set body = {"test":"directpost"}
+    Try {
+        Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client)
+        Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectPost status code 200")
+        Do $$$AssertEquals(response.json.test, "directpost", "DirectPost body check")
+    } Catch ex {
+        Do $$$AssertStatusOK(ex.AsStatus(), "DirectPost should not throw")
+    }
+}
+
+Method TestDirectPut()
+{
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestDirectPut because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
+    }
+    
+    Set config = "url=http://httpbin/put,timeout=5"
+    Set body = {"test":"directput"}
+    Try {
+        Set response = ##class(dc.http.FastHTTP).DirectPut(config, body, .client)
+        Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectPut status code 200")
+        Do $$$AssertEquals(response.json.test, "directput", "DirectPut body check")
+    } Catch ex {
+        Do $$$AssertStatusOK(ex.AsStatus(), "DirectPut should not throw")
+    }
+}
+
+Method TestDirectDelete()
+{
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestDirectDelete because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
+    }
+    
+    Set config = "url=http://httpbin/delete,timeout=5"
+    Try {
+        Set response = ##class(dc.http.FastHTTP).DirectDelete(config, , .client)
+        Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectDelete status code 200")
+    } Catch ex {
+        Do $$$AssertStatusOK(ex.AsStatus(), "DirectDelete should not throw")
+    }
 }
 
 }
