@@ -6,8 +6,8 @@ services:
     #restart: always
     environment:
       - ISC_CPF_MERGE_FILE=/home/irisowner/dev/merge.cpf
-    env_file:
-      - .env
+    #env_file:
+    #  - .env
     ports:
       - 1972
       - 52773
