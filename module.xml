@@ -3,12 +3,11 @@
   <Document name="fast-http.ZPM">
     <Module>
       <Name>fast-http</Name>
-      <Version>1.0.3</Version>
+      <Version>1.0.4</Version>
       <Description>Fast HTTP wrapper for %Net.HttpRequest</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="dc.http.PKG"/>
-      <Resource Name="dc.aigateway.PKG"/>
       <UnitTest Name="/" Package="tests.dc.http" Phase="test"/>
     </Module>
   </Document>
