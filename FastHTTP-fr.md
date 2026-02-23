@@ -118,7 +118,7 @@ Le code est ainsi nettement plus concis. Sur un de mes précédents projets néc
 
 ## La macro `$$$f`
 
-Pour rendre la construction des chaînes de configuration encore plus dynamique, le projet introduit une macro utilitaire `$$$f`.
+Pour rendre la construction des chaînes de configuration plus dynamique, le projet introduit une macro utilitaire `$$$f`.
 
 ### Rôle et Fonctionnement
 
@@ -165,6 +165,36 @@ Set string = $$$fe("key1={value},key2=test")  ; --> "key1=1\,2\,3,key2=test"
 ## Sources
 
 Tout est disponible sur le GitHub [iris-fast-http](https://github.com/lscalese/iris-fast-http) ou via `zpm "fast-http"`.  
+
+## Notes additionels
+
+Pour les développeurs souhaitant contribuer à ce projet ou simplement le modifier en local, des tests unitaires sont disponibles et peuvent être lancés avec la commande :
+
+```
+zpm "test fast-http"
+```
+
+Des tests d’intégration sont également fournis dans la classe `tests.dc.http.Integration`. Leur objectif est de valider le bon fonctionnement global en envoyant de véritables requêtes HTTP vers un serveur de test.
+
+Si vous utilisez Docker, le `docker-compose` inclus dans le projet démarre automatiquement un conteneur httpbin :
+
+```docker-compose
+  # A simple HTTP service used for integration testing of the FastHTTP class
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - "9292:80"
+```
+
+Ce service fournit un serveur de test prêt à l’emploi pour la classe `tests.dc.http.Integration`.
+Les tests d’intégration peuvent être activés ou désactivés via le paramètre suivant :
+
+```
+Set ^dc.http("RUNINTEGRATION") = 1  ; 1: enabled,  0: disabled
+```
+
+Ce paramètre est automatiquement activé lorsque ce dépôt est utilisé avec Docker.  
+Dans le cas où vous ne développez pas avec Docker, les tests d’intégration seront désactivés par défaut et vous devrez les configurer et adapter pour qu’ils pointent vers votre propre instance de serveur httpbin.  
 
 ## Conclusion
 
