@@ -36,29 +36,52 @@ ClassMethod CreateSystemEvent(resourceId As %String) As %Integer
 
 Method Listen() As %Status
 {
-    Set start = $ZHorolog
+    Set start = $ZHorolog, count = 0
     For  {
         Set result = $SYSTEM.Event.WaitMsg(..ResourceId, ..SystemEventTimeout)
         Set code = $ListGet(result, 1)
         Set data = $ListGet(result, 2)
         Quit:code=-1 ;event deleted
         If code = 1, data '= "" {
+            If count = 0 {
+                Do ..OnFirstMessage(data)
+            }
+            Set count = count + 1
             If '..OnMessage(data) {
                 Quit
             }
             If ..StopOnMessageContains '= "", data [ ..StopOnMessageContains {
+                Do ..OnLastMessage(data)
                 Quit
             }   
         }
-        Quit:($ZHorolog - start > ..SystemEventMaxWait)
+        If $ZHorolog - start > ..SystemEventMaxWait {
+            Do ..OnTimeout()
+            Quit
+        }
     }
     Do ..CleanSystemEvent(..ResourceId)
+    Return $$$OK
+}
+
+Method OnFirstMessage(message As %String) As %Status
+{
     Return $$$OK
 }
 
 Method OnMessage(message As %String) As %Boolean
 {
     Return $$$YES
+}
+
+Method OnLastMessage(message As %String) As %Status
+{
+    Return $$$OK
+}
+
+Method OnTimeout() As %Status
+{
+    Return $$$OK
 }
 
 }

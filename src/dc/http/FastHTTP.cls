@@ -16,6 +16,8 @@ Parameter VALIDESCAPEDCHARS = ",\";
 
 Property HttpRequest As %Net.HttpRequest [ InitialExpression = {##class(%Net.HttpRequest).%New()} ];
 
+Property HttpResponse As %Net.HttpResponse [ Calculated ];
+
 /// Ex: Set client = ##class(dc.http.FastHTTP).%New("url=http://example.com/api,Header_Authorization=Bearer <yourkey>")
 Method %OnNew(config As %String = "") As %Status
 {
@@ -79,12 +81,14 @@ Method ApplyConfig(configString As %String = "") As %Status
         Do ..CreateSSLConfiguration(..HttpRequest.SSLConfiguration)
     }
 
-    If config.%Get("stream_mode") '= "" {
+    If config.%Get("resource_id") '= "" || (config.%Get("callback") '= "") {
         Set responseStream = ##class(dc.http.Stream).%New()
-        Set responseStream.ResourceId = config.%Get("stream_mode")
+        Set responseStream.ResourceId = config.%Get("resource_id")
+        Set responseStream.CallBackClass = $Piece(config.%Get("callback"), ".", 1, * - 1)
+        Set responseStream.CallBackMethod = $Piece(config.%Get("callback"), ".", *)
         Set ..HttpRequest.ResponseStream = responseStream
     }
-    
+
     Return:'$IsObject(config.headers) $$$OK
     
     Set iter = config.headers.%GetIterator()
@@ -106,10 +110,6 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
     Set config = {}, headers = {}
     Do ..initMapLowerProperties(.mapLowerProperties)
 
-    ;Set len = $Length(pConfigStr, separator)
-    ;For i=1:1:len {
-    ;    Set pair = $Piece(pConfigStr, separator, i)
-    ;    Continue:pair=""
     Set atEnd = 0
     While 'atEnd {
         Set pair = ..NextPair(pConfigStr, .position, .atEnd)
@@ -127,13 +127,8 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
             Continue
         }
         
-        If lowerKey = "url" {
-            Do config.%Set("url", val)
-            Continue
-        }
-
-        If lowerKey = "stream_mode" {
-            Do config.%Set("stream_mode", val)
+        If ",url,resource_id,callback," [ ($$$f(",{lowerKey},")) {
+            Do config.%Set(lowerKey, val)
             Continue
         }
 
@@ -248,27 +243,36 @@ Method SendRequest(pMethod As %String, pPath As %String, pBody As %DynamicObject
         Set sc = ..HttpRequest.Delete(pPath)
     }
     
-    If $$$ISERR(sc) Throw ##class(%Exception.StatusException).CreateFromStatus(sc)
+    If $$$ISERR(sc) $$$ThrowStatus(sc)
     
     // Vérification basique du code HTTP (peut être affiné)
-    If (..HttpRequest.HttpResponse.StatusCode >= 400) {
-        Throw ##class(%Exception.General).%New("HTTP Error: " _ ..HttpRequest.HttpResponse.StatusCode _ " - " _ ..HttpRequest.HttpResponse.ReasonPhrase)
-    }
+    //If (..HttpRequest.HttpResponse.StatusCode >= 400) {
+    //    Throw ##class(%Exception.General).%New("HTTP Error: " _ ..HttpRequest.HttpResponse.StatusCode _ " - " _ ..HttpRequest.HttpResponse.ReasonPhrase)
+    //}
     
-    // Lecture de la réponse
-    Set responseData = ..HttpRequest.HttpResponse.Data
-    If $IsObject(responseData) && responseData.Size > 0 {
-        // Tente de retourner un DynamicObject s'il s'agit de JSON
-        Try {
-            Return {}.%FromJSON(responseData)
-        } Catch {
-            // Sinon retourne le stream brut ou une chaîne (selon besoin)
-            Do responseData.Rewind()
-            Return {"raw": (responseData.Read())}
+    Return ..ProcessResponse(..HttpResponse)
+}
+
+ClassMethod ProcessResponse(httpResponse As %Net.HttpResponse) As %DynamicObject
+{
+    Set responseData = httpResponse.Data
+    // Tente de retourner un DynamicObject s'il s'agit de JSON, sinon retourne un objet avec les propriétés de base et les données brutes
+    Try {
+        Do responseData.Rewind()
+        Set data = {}.%FromJSON(responseData)
+    } Catch ex {
+        Do responseData.Rewind()
+        While 'responseData.AtEnd {
+            Set data = data _ responseData.Read()
         }
+        Set data = { "raw" : (data)}
     }
-    
-    Return {}
+    Return {
+        "statusCode": (httpResponse.StatusCode),
+        "reasonPhrase": (httpResponse.ReasonPhrase),
+        "contentType": (httpResponse.GetHeader("Content-Type")),
+        "data": (data)
+    }
 }
 
 Method HandleEntityBody(pBody = "") As %Status [ Internal ]
@@ -329,6 +333,11 @@ ClassMethod initMapLowerProperties(ByRef mapLowerProperties) As %Status [ Intern
     Set mapLowerProperties("writerawmode") = "WriteRawMode"
     Set mapLowerProperties("writetimeout") = "WriteTimeout"
     Return $$$OK
+}
+
+Method HttpResponseGet() As %Net.HttpResponse [ CodeMode = expression ]
+{
+..HttpRequest.HttpResponse
 }
 
 ClassMethod SetCacheData(key As %String, value As %String)
