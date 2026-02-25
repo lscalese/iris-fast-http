@@ -22,7 +22,7 @@ Method TestDirectGet()
         Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "Status code should be 200")
         
         // httpbin returns query params in 'args' field
-        Do $$$AssertEquals(response.args.test, "directget", "Response should contain our query parameter")
+        Do $$$AssertEquals(response.data.args.test, "directget", "Response should contain our query parameter")
     } Catch ex {
         Do $$$AssertStatusOK(ex.AsStatus(), "DirectGet should not throw an exception: " _ ex.DisplayString())
     }
@@ -44,14 +44,14 @@ Method TestIntegrationGET()
     Set sc = client.ApplyConfig(config)
     Do $$$AssertStatusOK(sc, "ApplyConfig for integration test")
     
-    Set sc = client.SendRequest("GET", "")
-    Do $$$AssertStatusOK(sc, "Execute GET")
+    Set response = client.SendRequest("GET", "")
+    Do $$$AssertTrue($IsObject(response), "Execute GET should return an object")
     Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "Status code should be 200")
     
     // Read response
     Do client.HttpRequest.HttpResponse.Data.Rewind()
-    Set response = client.HttpRequest.HttpResponse.Data.Read()
-    Do $$$AssertTrue(response [ """test"": ""123""", "Response should contain our query parameter")
+    Set rawResponse = client.HttpRequest.HttpResponse.Data.Read()
+    Do $$$AssertTrue(rawResponse [ """test"": ""123""", "Response should contain our query parameter")
 }
 
 Method TestIntegrationPOST()
@@ -68,14 +68,14 @@ Method TestIntegrationPOST()
     Set sc = client.ApplyConfig(config)
     
     Set body = "{""hello"": ""world""}"
-    Set sc = client.SendRequest("POST","",body)
-    Do $$$AssertStatusOK(sc, "Execute POST")
+    Set response = client.SendRequest("POST","",body)
+    Do $$$AssertTrue($IsObject(response), "Execute POST should return an object")
     Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "Status code should be 200")
     
     // httpbin returns the JSON body in the "json" field of its response
     Do client.HttpRequest.HttpResponse.Data.Rewind()
-    Set response = client.HttpRequest.HttpResponse.Data.Read()
-    Do $$$AssertTrue(response [ """hello"": ""world""", "Response should contain our JSON body")
+    Set rawResponse = client.HttpRequest.HttpResponse.Data.Read()
+    Do $$$AssertTrue(rawResponse [ """hello"": ""world""", "Response should contain our JSON body")
 }
 
 Method TestDirectPost()
@@ -90,7 +90,7 @@ Method TestDirectPost()
     Try {
         Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client)
         Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectPost status code 200")
-        Do $$$AssertEquals(response.json.test, "directpost", "DirectPost body check")
+        Do $$$AssertEquals(response.data.json.test, "directpost", "DirectPost body check")
     } Catch ex {
         Do $$$AssertStatusOK(ex.AsStatus(), "DirectPost should not throw")
     }
@@ -108,7 +108,7 @@ Method TestDirectPut()
     Try {
         Set response = ##class(dc.http.FastHTTP).DirectPut(config, body, .client)
         Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectPut status code 200")
-        Do $$$AssertEquals(response.json.test, "directput", "DirectPut body check")
+        Do $$$AssertEquals(response.data.json.test, "directput", "DirectPut body check")
     } Catch ex {
         Do $$$AssertStatusOK(ex.AsStatus(), "DirectPut should not throw")
     }

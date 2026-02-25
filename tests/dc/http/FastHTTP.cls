@@ -123,12 +123,13 @@ Method TestParseConfigString()
     Do $$$AssertEquals(config.headers."X-Test", "Value", "X-Test header should be present")
 
     // Test HttpRequest properties (mapped)
-    Set str = "timeout=30,sslconfiguration=MyConfig,stream_mode=12345"
+    Set str = "timeout=30,sslconfiguration=MyConfig,callback=myclass.mymethod,resource_id=stream123"
     Set config = ##class(dc.http.FastHTTP).ParseConfigString(str)
     Do $$$AssertEquals(config.Timeout, 30, "Timeout should be mapped to TitleCase")
     Do $$$AssertEquals(config.SSLConfiguration, "MyConfig", "SSLConfiguration should be mapped to TitleCase")
-    Do $$$AssertEquals(config.%Get("stream_mode"), "12345", "stream_mode should be preserved")
-
+    Do $$$AssertEquals(config.%Get("callback"), "myclass.mymethod", "Callback should be preserved")
+    Do $$$AssertEquals(config.%Get("resource_id"), "stream123", "Resource ID should be preserved")
+    
     // Test escaping in values
     Set str = "url=http://site.com?q=a\,b,Header_Custom=Val\,with\,comma"
     Set config = ##class(dc.http.FastHTTP).ParseConfigString(str)
@@ -178,8 +179,8 @@ Method TestApplyConfig()
 {
     Set client = ##class(dc.http.FastHTTP).%New()
     
-    // Mixed config: URL, mapped property, Header and stream_mode
-    Set configStr = "url=https://api.test.com/v1,timeout=45,Header_Authorization=Bearer XYZ,stream_mode=S1"
+    // Mixed config: URL, mapped property, Header and callback
+    Set configStr = "url=https://api.test.com/v1,timeout=45,Header_Authorization=Bearer XYZ,callback=MyClass.MyMethod,resource_id=stream123"
     Set sc = client.ApplyConfig(configStr)
     Do $$$AssertStatusOK(sc, "ApplyConfig should return OK")
     
