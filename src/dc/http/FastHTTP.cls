@@ -262,6 +262,7 @@ ClassMethod ProcessResponse(httpResponse As %Net.HttpResponse) As %DynamicObject
         Set data = {}.%FromJSON(responseData)
     } Catch ex {
         Do responseData.Rewind()
+        Set data = ""
         While 'responseData.AtEnd {
             Set data = data _ responseData.Read()
         }
