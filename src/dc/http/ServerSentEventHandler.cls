@@ -39,7 +39,7 @@ Method Parse(event As %String) As %Status
 /// Write "Comment: ", item.Comment, !
 /// Write "----", !
 /// USE io
-ClassMethod OnMessage(item As dc.http.ServerSentEventMessage) As %Status
+Method OnMessage(item As dc.http.ServerSentEventMessage) As %Status
 {
     /*
     Set io = $IO
