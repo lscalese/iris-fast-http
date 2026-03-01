@@ -81,12 +81,8 @@ Method ApplyConfig(configString As %String = "") As %Status
         Do ..CreateSSLConfiguration(..HttpRequest.SSLConfiguration)
     }
 
-    If config.%Get("resource_id") '= "" || (config.%Get("callback") '= "") {
-        Set responseStream = ##class(dc.http.Stream).%New()
-        Set responseStream.ResourceId = config.%Get("resource_id")
-        Set responseStream.CallBackClass = $Piece(config.%Get("callback"), ".", 1, * - 1)
-        Set responseStream.CallBackMethod = $Piece(config.%Get("callback"), ".", *)
-        Set ..HttpRequest.ResponseStream = responseStream
+    If config.%Get("stream_mode") {
+        Set ..HttpRequest.ResponseStream = ##class(dc.http.Stream).%New()
     }
 
     Return:'$IsObject(config.headers) $$$OK
@@ -127,7 +123,7 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
             Continue
         }
         
-        If ",url,resource_id,callback," [ ($$$f(",{lowerKey},")) {
+        If ",url,stream_mode," [ ($$$f(",{lowerKey},")) {
             Do config.%Set(lowerKey, val)
             Continue
         }
@@ -139,6 +135,14 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
         }
         
         Do config.%Set(httpRequestProperty, val)
+    }
+
+    If config.%Get("stream_mode") = "true" {
+        Do config.%Set("stream_mode", 1) ; convert boolean "true text" to boolean value 1
+    }
+
+    If config.%Get("stream_mode") = "false" {
+        Do config.%Set("stream_mode", 0) ; convert boolean "false text" to boolean value 0
     }
     
     If headers.%Size() > 0 {
@@ -235,20 +239,18 @@ Method SendRequest(pMethod As %String, pPath As %String, pBody As %DynamicObject
     Set sc = $$$OK
     If pMethod = "GET" {
         Set sc = ..HttpRequest.Get(pPath)
-    } ElseIf pMethod = "POST" {
+    } 
+    ElseIf pMethod = "POST" {
         Set sc = ..HttpRequest.Post(pPath)
-    } ElseIf pMethod = "PUT" {
+    } 
+    ElseIf pMethod = "PUT" {
         Set sc = ..HttpRequest.Put(pPath)
-    } ElseIf pMethod = "DELETE" {
+    } 
+    ElseIf pMethod = "DELETE" {
         Set sc = ..HttpRequest.Delete(pPath)
     }
     
     If $$$ISERR(sc) $$$ThrowStatus(sc)
-    
-    // Vérification basique du code HTTP (peut être affiné)
-    //If (..HttpRequest.HttpResponse.StatusCode >= 400) {
-    //    Throw ##class(%Exception.General).%New("HTTP Error: " _ ..HttpRequest.HttpResponse.StatusCode _ " - " _ ..HttpRequest.HttpResponse.ReasonPhrase)
-    //}
     
     Return ..ProcessResponse(..HttpResponse)
 }
