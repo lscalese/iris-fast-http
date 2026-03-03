@@ -1,4 +1,4 @@
-Class dc.http.ServerSentEventMessage Extends %RegisteredObject
+Class dc.http.SSEMessage Extends %RegisteredObject
 {
 
 Property EventName As %String;

@@ -1,4 +1,4 @@
-Class dc.http.ServerSentEventHandler Extends %RegisteredObject
+Class dc.http.SSEHandler Extends %RegisteredObject
 {
 
 Property MessageSeparator As %String [ InitialExpression = {$Get(^ServerSentEventHandler("MessageSeparator"), $Char(10,10))} ];
@@ -7,13 +7,20 @@ Property LineSeparator As %String [ InitialExpression = {$Get(^ServerSentEventHa
 
 Property Items As %ListOfObjects;
 
-ClassMethod NotifyEvent(message As %String) As %Status
+Property Adapter As dc.http.SSEAdapter;
+
+Property SwitchIOOnMessage As %Boolean [ InitialExpression = 1 ];
+
+Property IO As %String [ InitialExpression = 0 ];
+
+ClassMethod Notify(message As %String) As %Status
 {
     Return ..GetInstance().Parse(message) ; retrieve the previously created instance of the handler and call Parse to process the incoming message
 }
 
 Method Parse(event As %String) As %Status
 {
+    Set io = $IO
     Set splitMsg = $ListFromString(event, ..MessageSeparator), ptr = 0
     While $ListNext(splitMsg, ptr, item) {
         Continue:item=""
@@ -21,35 +28,17 @@ Method Parse(event As %String) As %Status
         For i=1:1:SSEMessages.Count() {
             Set sseMessage = SSEMessages.GetAt(i)
             Do ..Items.Insert(sseMessage)
-            Do ..OnMessage(sseMessage)
+            Continue:'$IsObject(..Adapter)
+            Try {
+                Use:..SwitchIOOnMessage ..IO
+                Do ..Adapter.OnMessage(sseMessage)
+                Use:..SwitchIOOnMessage io
+            } Catch ex {
+                Use:..SwitchIOOnMessage io
+                Throw ex
+            }
         }
     }
-    Return $$$OK
-}
-
-/// Override this method in subclasses to handle incoming messages
-/// Keep in mind when this method is called, the current $IO is a |TCP| device and not the standard output, 
-/// so if you want to write to the console for debugging purposes, you need to save the current $IO and switch to 0 before writing, 
-/// then switch back to the original $IO after you're done.
-/// For example:
-/// Set io = $IO
-/// USE 0
-/// Write "Event: ", item.EventName, !
-/// Write "Data: ", item.Data, !
-/// Write "Comment: ", item.Comment, !
-/// Write "----", !
-/// USE io
-Method OnMessage(item As dc.http.ServerSentEventMessage) As %Status
-{
-    /*
-    Set io = $IO
-    USE 0
-    Write "Event: ", item.EventName, !
-    Write "Data: ", item.Data, !
-    Write "Comment: ", item.Comment, !
-    Write "----", !
-    USE io
-    */
     Return $$$OK
 }
 
@@ -63,7 +52,7 @@ ClassMethod ProcessItem(messageItem As %String, lineSeparator As %String = {$Get
         Set line = $Piece(messageItem, lineSeparator, i)
         Continue:line=""
 
-        Set parsedItem = ##class(dc.http.ServerSentEventMessage).%New()
+        Set parsedItem = ##class(dc.http.SSEMessage).%New()
         Set parsedItem.Raw = line
 
         If ..IsComment(line, .comment) {
@@ -114,7 +103,7 @@ ClassMethod IsEventType(line As %String, Output eventType As %String = "") As %B
     Return $$$YES
 }
 
-ClassMethod SetInstance(instance As dc.http.ServerSentEventHandler)
+ClassMethod SetInstance(instance As dc.http.SSEHandler)
 {
     Set %zSSEHandler = instance
 }
@@ -124,13 +113,28 @@ Method SetThisInstance()
     Do ..SetInstance(##this)
 }
 
-ClassMethod GetInstance() As dc.http.ServerSentEventHandler
+ClassMethod GetInstance() As dc.http.SSEHandler
 {
     Set instance = $Get(%zSSEHandler)
     Return:$IsObject(instance) instance
     Set instance = ..%New()
     Do ..SetInstance(instance)
     Return instance
+}
+
+/// Create a new instance of the handler and set it as the current instance to be used for processing incoming messages.
+/// Return the newly created instance.
+ClassMethod SetAndGetNewInstance() As dc.http.SSEHandler
+{
+    Set instance = ..%New()
+    Do ..SetInstance(instance)
+    Return instance
+}
+
+Method Reset()
+{
+    Do ..Items.Clear()
+    Do:$IsObject(..Adapter) ..Adapter.Reset()
 }
 
 }
