@@ -4,14 +4,19 @@ Class dc.http.Stream Extends %Stream.GlobalBinary
 
 Method Write(data As %String = "") As %Status
 {
-    Do ##class(dc.http.SSEHandler).Notify($ZConvert(data, "I", "UTF8"))
+    Do ..Notify(data)
     Return ##super(data)
 }
 
 Method WriteLine(data As %String = "") As %Status
 {
-    Do ##class(dc.http.SSEHandler).Notify($ZConvert(data, "I", "UTF8"))
+    Do ..Notify(data _ ..LineTerminator)
     Return ##super(data)
+}
+
+Method Notify(data As %String) As %Status
+{
+    Return ##class(dc.http.SSEHandler).Notify($ZConvert(data, "I", "UTF8"))
 }
 
 }

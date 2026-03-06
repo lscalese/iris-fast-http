@@ -1,106 +1,77 @@
 Class dc.http.SSEHandler Extends %RegisteredObject
 {
 
-Property MessageSeparator As %String [ InitialExpression = {$Get(^ServerSentEventHandler("MessageSeparator"), $Char(10,10))} ];
-
-Property LineSeparator As %String [ InitialExpression = {$Get(^ServerSentEventHandler("LineSeparator"), $Char(10))} ];
-
-Property Items As %ListOfObjects;
-
 Property Adapter As dc.http.SSEAdapter;
 
 Property SwitchIOOnMessage As %Boolean [ InitialExpression = 1 ];
 
 Property IO As %String [ InitialExpression = 0 ];
 
-ClassMethod Notify(message As %String) As %Status
+Property Id As %String;
+
+Property Retry As %String;
+
+Property Messages As list Of dc.http.SSEMessage;
+
+Property MessageSeparator As %String [ InitialExpression = {$Char(10,10)} ];
+
+Property LineSeparator As %String [ InitialExpression = {$Char(10)} ];
+
+/// Used if we receive a partial message that doesn't end with two newlines.
+Property Buffer As %String;
+
+ClassMethod Notify(data As %String) As %Status
 {
-    Return ..GetInstance().Parse(message) ; retrieve the previously created instance of the handler and call Parse to process the incoming message
+    Return ..GetInstance().BufferProcessing(data)
 }
 
-Method Parse(event As %String) As %Status
+Method BufferProcessing(data As %String) As %Status
 {
-    Set io = $IO
-    Set splitMsg = $ListFromString(event, ..MessageSeparator), ptr = 0
-    While $ListNext(splitMsg, ptr, item) {
-        Continue:item=""
-        Set SSEMessages = ..ProcessItem(item)
-        For i=1:1:SSEMessages.Count() {
-            Set sseMessage = SSEMessages.GetAt(i)
-            Do ..Items.Insert(sseMessage)
-            Continue:'$IsObject(..Adapter)
-            Try {
-                Use:..SwitchIOOnMessage ..IO
-                Do ..Adapter.OnMessage(sseMessage)
-                Use:..SwitchIOOnMessage io
-            } Catch ex {
-                Use:..SwitchIOOnMessage io
-                Throw ex
-            }
-        }
+    ; a valid message to parse should be ending with two newlines.
+    ; if it doesn't, it means we have a partial message, and we should wait for the rest of the message before trying to parse it.
+    Set ..Buffer = $Replace(..Buffer _ data, $Char(13, 10), $Char(10)) ; Normalize newlines to LF for consistent processing
+    If $Extract(..Buffer, *-($Length(..MessageSeparator)-1), *) '= ..MessageSeparator {
+        Return $$$OK
+    }
+    Set sc = ..Process(..Buffer)
+    Set ..Buffer = ""
+    Return sc
+}
+
+Method Process(messages As %String) As %Status
+{
+    For i = 1 : 1 : $Length(messages, ..MessageSeparator) {
+        Set messageString = $Piece(messages, ..MessageSeparator, i)
+        Continue:messageString=""
+        
+        Set message = ##class(dc.http.SSEMessage).%New(messageString, ..LineSeparator)
+        Do ..Messages.Insert(message)
+        
+        Set:message.Id'="" ..Id = message.Id
+        Set:message.Retry'="" ..Retry = message.Retry
+
+        Do ..SafeAdapterCall(message)
     }
     Return $$$OK
 }
 
-ClassMethod ProcessItem(messageItem As %String, lineSeparator As %String = {$Get(^ServerSentEventHandler("LineSeparator"), $Char(10))}) As %ListOfObjects
+Method SafeAdapterCall(message As dc.http.SSEMessage) As %Status
 {
-    Set previousLine = ""
-
-    Set listParsedItems = ##class(%ListOfObjects).%New()
-
-    For i = 1 : 1 : $Length(messageItem, lineSeparator) {
-        Set line = $Piece(messageItem, lineSeparator, i)
-        Continue:line=""
-
-        Set parsedItem = ##class(dc.http.SSEMessage).%New()
-        Set parsedItem.Raw = line
-
-        If ..IsComment(line, .comment) {
-            Set parsedItem.Comment = comment
-        }
-        ElseIf ..IsData(line, .data) {
-            If ..IsEventType(previousLine, .eventType) { ; If previous line is event type, we can associate it with this data
-                Set parsedItem.EventName = eventType
-            }
-            Set parsedItem.Data = data
-        }
-        ElseIf ..IsEventType(line, .eventType) {
-            Set parsedItem.EventName = eventType
-        }
-        
-        Do listParsedItems.Insert(parsedItem)
-
-        Set previousLine = line, eventType = "", comment = "", data = ""
+    If '$IsObject(..Adapter) {
+        Return $$$OK
     }
+    Set io = $IO
 
-    Return listParsedItems
-}
-
-ClassMethod IsComment(line As %String, Output comment As %String = "") As %Boolean
-{
-    If $Extract(line, 1) '= ":" {
-        Return $$$NO
+    Try {
+        Use:..SwitchIOOnMessage ..IO
+        Do ..Adapter.OnMessage(message)
+        Use:..SwitchIOOnMessage io
+    } 
+    Catch ex {
+        Use:..SwitchIOOnMessage io
+        Throw ex
     }
-    Set comment = $Extract(line, 3, *)
-    Return $$$YES
-}
-
-ClassMethod IsData(line As %String, Output data As %String = "") As %Boolean
-{
-    If $Extract(line, 1, 5) '= "data:" {
-        Return $$$NO
-    }
-    Set data = $Extract(line, 7, *)
-    Return $$$YES
-}
-
-ClassMethod IsEventType(line As %String, Output eventType As %String = "") As %Boolean
-{
-    If $Extract(line, 1, 6) '= "event:" {
-        Return $$$NO
-    }
-    Set eventType = $Extract(line, 8, *)
-    Return $$$YES
+    Return $$$OK
 }
 
 ClassMethod SetInstance(instance As dc.http.SSEHandler)
@@ -133,7 +104,7 @@ ClassMethod SetAndGetNewInstance() As dc.http.SSEHandler
 
 Method Reset()
 {
-    Do ..Items.Clear()
+    Do ..Messages.Clear()
     Do:$IsObject(..Adapter) ..Adapter.Reset()
 }
 

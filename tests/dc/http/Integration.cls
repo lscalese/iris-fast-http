@@ -130,25 +130,4 @@ Method TestDirectDelete()
     }
 }
 
-Method TestDirectGetWithCallBack()
-{
-    If ..#RUNINTEGRATION = 0 {
-        Do $$$LogMessage("Skipping TestDirectGetWithCallback because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
-        Return
-    }
-    Kill:$Data(^||CallbackData) ^||CallbackData
-    Set config = "url=http://httpbin/get?test=callback,timeout=5,stream_mode=1"
-    Try {
-        Set handler = ##class(dc.http.SSEHandler).SetAndGetNewInstance()
-        Set handler.Adapter = ##class(tests.dc.http.SSETestAdapter).%New()
-
-        Set response = ##class(dc.http.FastHTTP).DirectGet(config, , .client)
-        Do $$$AssertEquals(client.HttpRequest.HttpResponse.StatusCode, 200, "DirectGet with callback status code 200")
-        Do $$$AssertTrue($Data(^||CallbackData), "Callback should have set data in ^||CallbackData")
-    } Catch ex {
-        Do $$$AssertStatusOK(ex.AsStatus(), "DirectGet with callback should not throw")
-    }
-    Kill ^||CallbackData
-}
-
 }

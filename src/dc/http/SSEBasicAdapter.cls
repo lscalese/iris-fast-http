@@ -5,10 +5,13 @@ Class dc.http.SSEBasicAdapter Extends dc.http.SSEAdapter
 
 Method OnMessage(message As dc.http.SSEMessage) As %Status
 {
-    Write "Event Name: ", message.EventName, !
-    Write "Data: ", message.Data, !
-    Write "Comment: ", message.Comment, !
-    Write "Raw: ", message.Raw, !
+    Write "Raw message: ", message.Raw, !
+    Write "Event: ", message.Event, !
+    Write "ID: ", message.Id, !
+    Write "Retry: ", message.Retry, !
+    For i = 1 : 1 : message.Data.Count() {
+        Write "Data line ", i, ": ", message.Data.GetAt(i), !
+    }
     Return $$$OK
 }
 

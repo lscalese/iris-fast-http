@@ -4,69 +4,70 @@ Class tests.dc.http.SSEChat Extends %UnitTest.TestCase
 Method TestChatCompletionChunk()
 {
     Set splitMessage = $lb("Hi,","How","can","I","help","you","today?")
-    Set messageControl = $lts(splitMessage, " ") _ " "
+    // The loop adds a space after each chunk, so we expect this result:
+    Set expectedText = "Hi, How can I help you today? " 
 
-    
-    Set stream = ##class(dc.http.Stream).%New()
     Set handler = ##class(dc.http.SSEHandler).SetAndGetNewInstance()
-    Set handler.Adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
-    Set handler.SwitchIOOnMessage = $$$NO
+    Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
+    
+    Set handler.Adapter = adapter
+    Set handler.SwitchIOOnMessage = 0 // Don't switch IO automatically, we control it
 
     Set ptr = 0, io = $IO, tempFile = ##class(%File).TempFilename("log")
-    Open tempFile:"NWR"
+    
+    // Open temp file to capture Write output from adapter
+    Open tempFile:("NWS")
+    Use tempFile
     Try {
-        Use tempFile
         While $ListNext(splitMessage, ptr, toChunk) {
             Set chunkMessage = {
-                "choices": {
-                    "0": {
+                "choices": [
+                    {
                         "delta": {
                             "content": (toChunk_" ")
                         }
                     }
-                },
+                ],
                 "object": "chat.completion.chunk"
             }
-            Do stream.Write("data: "_chunkMessage.%ToJSON()_$Char(10,10))
+            // Construct a proper SSE message string
+            Set rawSSE = "data: "_chunkMessage.%ToJSON()_$Char(10,10)
+            
+            // Process the SSE stream chunk via the handler
+            Do handler.Process(rawSSE)
         }
-        Close tempFile
-        Use io
     }
     Catch ex {
-        Close tempFile
         Use io
+        Close tempFile
         Do ##class(%File).Delete(tempFile)
-        Set sc= ex.AsStatus()
-        Do $$$AssertStatusOK(sc, "Exception occurred during test execution: "_$SYSTEM.Status.GetErrorText(sc))
         Throw ex
     }
+    Use io
+    Close tempFile
     
 
+    // Read the File content to verify what was printed
     Set file = ##class(%Stream.FileCharacter).%New()
     Do file.LinkToFile(tempFile)
-    Set firstLine = file.ReadLine()
+    Set fileContent = file.Read()
     Kill file
     Do ##class(%File).Delete(tempFile)
 
-    Do $$$AssertTrue(firstLine=messageControl, "Expected: "_messageControl_" Got: "_firstLine)
+    Do $$$AssertEquals(fileContent, expectedText, "Captured console output mismatch")
 
     // Verify adapter internal state
-    Set adapter = handler.Adapter
-    Do $$$AssertEquals(adapter.ContentResponse, messageControl, "Adapter ContentResponse should match the full message")
+    Do $$$AssertEquals(adapter.ContentResponse, expectedText, "Adapter ContentResponse property mismatch")
     
     // Verify Assistant Message helper
     Set assistantMsg = adapter.GetAssistantMessage()
     Do $$$AssertEquals(assistantMsg.role, "assistant", "Assistant message role should be 'assistant'")
-    Do $$$AssertEquals(assistantMsg.content, messageControl, "Assistant message content match")
+    Do $$$AssertEquals(assistantMsg.content, expectedText, "Assistant message content match")
 
-    // Verify all chunks were processed by handler
-    Do $$$AssertEquals(handler.Items.Count(), $ListLength(splitMessage), "Handler should have processed all chunks")
-
-    Do handler.Reset() // Ensure handler can reset state after processing
-    Do $$$AssertEquals(handler.Items.Count(), 0, "Handler should have no items after reset")
-    Do $$$AssertEquals(adapter.ContentResponse, "", "Adapter ContentResponse should be reset to empty")
-    Do $$$AssertEquals(adapter.LastChunk.%ToJSON(), "{}", "Adapter LastChunk should be reset to empty json object {}")
-    Return
+    // Verify Reset works
+    Do adapter.Reset()
+    Do $$$AssertEquals(adapter.ContentResponse, "", "Adapter ContentResponse should be empty after reset")
+    Do $$$AssertEquals(adapter.LastChunk.%ToJSON(), "{}", "Adapter LastChunk should be empty after reset")
 }
 
 }

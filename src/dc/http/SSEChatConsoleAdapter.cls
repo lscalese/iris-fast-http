@@ -11,16 +11,18 @@ Property NewLineAsCRLF As %Boolean [ InitialExpression = 1 ];
 
 Method OnMessage(message As dc.http.SSEMessage) As %Status
 {
-    If 'message.IsValidJSONData(.jsonData) || (jsonData.object '= "chat.completion.chunk") {
-        Return $$$OK
-    }
-    Set content = jsonData.choices.%Get(0).delta.content
-    Set ..ContentResponse = ..ContentResponse _ content
-    Set ..LastChunk = jsonData
-    If ..NewLineAsCRLF {
-        Write $Replace(content, $Char(10), $Char(13, 10))
-    } Else {
-        Write content
+    For i = 1 : 1 : message.Data.Count() {
+        If 'message.IsValidJSONData(message.Data.GetAt(i), .jsonData) || (jsonData.object '= "chat.completion.chunk") {
+            Continue
+        }
+        Set content = jsonData.choices.%Get(0).delta.content
+        Set ..ContentResponse = ..ContentResponse _ content
+        Set ..LastChunk = jsonData
+        If ..NewLineAsCRLF {
+            Write $Replace(content, $Char(10), $Char(13, 10))
+        } Else {
+            Write content
+        }
     }
     Return $$$OK
 }
