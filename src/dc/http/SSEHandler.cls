@@ -3,7 +3,7 @@ Class dc.http.SSEHandler Extends %RegisteredObject
 
 Property Adapter As dc.http.SSEAdapter;
 
-Property SwitchIOOnMessage As %Boolean [ InitialExpression = 1 ];
+Property SwitchIOOnMessage As %Boolean [ InitialExpression = {$$$YES} ];
 
 Property IO As %String [ InitialExpression = 0 ];
 
@@ -20,39 +20,66 @@ Property LineSeparator As %String [ InitialExpression = {$Char(10)} ];
 /// Used if we receive a partial message that doesn't end with two newlines.
 Property Buffer As %String;
 
-ClassMethod Notify(data As %String) As %Status
+/// if the Buffer property exceeds this threshold, we will flush it until its last new line separator, 
+/// to avoid potential memory issues with very large messages that don't have proper newlines.
+Property BufferSizeAutoFlushThreshold As %Integer [ InitialExpression = {1024 * 1024} ];
+
+/// Max buffer size before throwing an error to avoid memory issues with malformed streams that never end with newlines.
+/// Default is 3 600 000 characters.
+Property MaxBufferSize As %Integer [ InitialExpression = 3600000 ];
+
+Method %OnNew(adapter As dc.http.SSEAdapter = "", switchIOOnMessage As %Boolean = "", io As %String = "") As %Status
 {
-    Return ..GetInstance().BufferProcessing(data)
+    Set:adapter'="" ..Adapter = adapter
+    Set:switchIOOnMessage'="" ..SwitchIOOnMessage = switchIOOnMessage
+    Set:io'="" ..IO = io
+    Return $$$OK
 }
 
 Method BufferProcessing(data As %String) As %Status
 {
-    ; a valid message to parse should be ending with two newlines.
-    ; if it doesn't, it means we have a partial message, and we should wait for the rest of the message before trying to parse it.
+    Set sc = $$$OK
+    ; A valid message to parse should be ending with two newlines.
+    ; If it doesn't, it means we have a partial message, and we should wait for the rest of the message before trying to parse it.
     Set ..Buffer = $Replace(..Buffer _ data, $Char(13, 10), $Char(10)) ; Normalize newlines to LF for consistent processing
-    If $Extract(..Buffer, *-($Length(..MessageSeparator)-1), *) '= ..MessageSeparator {
-        Return $$$OK
+    For  {
+        Set endOfMessagePos = $Find(..Buffer, ..MessageSeparator)
+        Quit:endOfMessagePos=0
+        Set message = $Extract(..Buffer, 1, endOfMessagePos - 1)
+        Set ..Buffer = $Extract(..Buffer, endOfMessagePos, *)
+        Set sc = $$$ADDSC(sc, ..Process(message))
     }
-    Set sc = ..Process(..Buffer)
-    Set ..Buffer = ""
+
+    If $Length(..Buffer) < ..BufferSizeAutoFlushThreshold {
+        Return sc
+    }
+
+    ; If buffer exceeds threshold, flush up to the last newline to avoid memory issues
+    For  {
+        Set newLinePosition = $Find(..Buffer, ..LineSeparator)
+        Quit:newLinePosition=0
+        Set message = $Extract(..Buffer, 1, newLinePosition - 1)
+        Set ..Buffer = $Extract(..Buffer, newLinePosition, *)
+        Set sc = $$$ADDSC(sc, ..Process(message))
+    }
+    
+    If $Length(..Buffer) > ..MaxBufferSize { 
+        Set ..Buffer = ""
+        $$$ThrowStatus($$$ERROR($$$GeneralError, "SSE Buffer overflow protector"))
+    }
+
     Return sc
 }
 
-Method Process(messages As %String) As %Status
+Method Process(messageString As %String) As %Status
 {
-    For i = 1 : 1 : $Length(messages, ..MessageSeparator) {
-        Set messageString = $Piece(messages, ..MessageSeparator, i)
-        Continue:messageString=""
-        
-        Set message = ##class(dc.http.SSEMessage).%New(messageString, ..LineSeparator)
-        Do ..Messages.Insert(message)
-        
-        Set:message.Id'="" ..Id = message.Id
-        Set:message.Retry'="" ..Retry = message.Retry
+    Set message = ##class(dc.http.SSEMessage).%New(messageString, ..LineSeparator)
+    Do ..Messages.Insert(message)
+    
+    Set:message.Id'="" ..Id = message.Id
+    Set:message.Retry'="" ..Retry = message.Retry
 
-        Do ..SafeAdapterCall(message)
-    }
-    Return $$$OK
+    Return ..SafeAdapterCall(message)
 }
 
 Method SafeAdapterCall(message As dc.http.SSEMessage) As %Status
@@ -67,39 +94,11 @@ Method SafeAdapterCall(message As dc.http.SSEMessage) As %Status
         Do ..Adapter.OnMessage(message)
         Use:..SwitchIOOnMessage io
     } 
-    Catch ex {
+    Catch ex {  ; Ensure to restore original IO in case of an error in the adapter
         Use:..SwitchIOOnMessage io
         Throw ex
     }
     Return $$$OK
-}
-
-ClassMethod SetInstance(instance As dc.http.SSEHandler)
-{
-    Set %zSSEHandler = instance
-}
-
-Method SetThisInstance()
-{
-    Do ..SetInstance(##this)
-}
-
-ClassMethod GetInstance() As dc.http.SSEHandler
-{
-    Set instance = $Get(%zSSEHandler)
-    Return:$IsObject(instance) instance
-    Set instance = ..%New()
-    Do ..SetInstance(instance)
-    Return instance
-}
-
-/// Create a new instance of the handler and set it as the current instance to be used for processing incoming messages.
-/// Return the newly created instance.
-ClassMethod SetAndGetNewInstance() As dc.http.SSEHandler
-{
-    Set instance = ..%New()
-    Do ..SetInstance(instance)
-    Return instance
 }
 
 Method Reset()

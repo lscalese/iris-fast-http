@@ -5,9 +5,9 @@ Method TestChatCompletionChunk()
 {
     Set splitMessage = $lb("Hi,","How","can","I","help","you","today?")
     // The loop adds a space after each chunk, so we expect this result:
-    Set expectedText = "Hi, How can I help you today? " 
+    Set expectedText = "Hi, How can I help you today? " ; add a trailing space to match the loop behavior
 
-    Set handler = ##class(dc.http.SSEHandler).SetAndGetNewInstance()
+    Set handler = ##class(dc.http.SSEHandler).%New()
     Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
     
     Set handler.Adapter = adapter

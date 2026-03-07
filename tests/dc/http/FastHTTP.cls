@@ -123,11 +123,10 @@ Method TestParseConfigString()
     Do $$$AssertEquals(config.headers."X-Test", "Value", "X-Test header should be present")
 
     // Test HttpRequest properties (mapped)
-    Set str = "timeout=30,sslconfiguration=MyConfig,stream_mode=1"
+    Set str = "timeout=30,sslconfiguration=MyConfig"
     Set config = ##class(dc.http.FastHTTP).ParseConfigString(str)
     Do $$$AssertEquals(config.Timeout, 30, "Timeout should be mapped to TitleCase")
     Do $$$AssertEquals(config.SSLConfiguration, "MyConfig", "SSLConfiguration should be mapped to TitleCase")
-    Do $$$AssertEquals(config.%Get("stream_mode"), 1, "Stream mode should be preserved")
     
     // Test escaping in values
     Set str = "url=http://site.com?q=a\,b,Header_Custom=Val\,with\,comma"
@@ -176,10 +175,11 @@ Method TestSetUrl()
 
 Method TestApplyConfig()
 {
-    Set client = ##class(dc.http.FastHTTP).%New()
+    Set responseStream = ##class(dc.http.Stream).%New()
+    Set client = ##class(dc.http.FastHTTP).%New(, responseStream)
     
-    // Mixed config: URL, mapped property, Header and stream_mode
-    Set configStr = "url=https://api.test.com/v1,timeout=45,Header_Authorization=Bearer XYZ,stream_mode=1"
+    // Mixed config: URL, mapped property, Header
+    Set configStr = "url=https://api.test.com/v1,timeout=45,Header_Authorization=Bearer XYZ"
     Set sc = client.ApplyConfig(configStr)
     Do $$$AssertStatusOK(sc, "ApplyConfig should return OK")
     
@@ -193,8 +193,7 @@ Method TestApplyConfig()
     Do $$$AssertEquals(client.HttpRequest.SSLConfiguration, "DefaultSSL", "SSLConfiguration should default to DefaultSSL for Https")
     
     // Stream mode
-    Do $$$AssertTrue($IsObject(client.HttpRequest.ResponseStream), "ResponseStream should be initialized")
-    Do $$$AssertTrue(client.HttpRequest.ResponseStream.%IsA("dc.http.Stream"), "ResponseStream should be a dc.http.Stream")
+    Do $$$AssertEquals(client.HttpRequest.ResponseStream, responseStream, "ResponseStream should be set to the provided stream")
 }
 
 }

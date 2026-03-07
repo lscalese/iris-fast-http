@@ -1,31 +1,15 @@
 Class tests.dc.http.Stream Extends %UnitTest.TestCase
 {
 
-/// Nous devons nous assurer que le Handler (Singleton) est propre et configuré
-/// car dc.http.Stream va probablement utiliser GetInstance() en interne.
-Method OnBeforeOneTest() As %Status
-{
-    Kill %zSSEHandler
-    Set handler = ##class(dc.http.SSEHandler).SetAndGetNewInstance()
-    Set mock = ##class(tests.dc.http.MockAdapter).%New()
-    Set handler.Adapter = mock
-    // On désactive le changement d'IO pour ne pas perturber le test runner
-    Set handler.SwitchIOOnMessage = 0 
-    Return $$$OK
-}
-
-Method OnAfterOneTest() As %Status
-{
-    Kill %zSSEHandler
-    Return $$$OK
-}
-
 /// Test de base : Un message coupé en deux Write successifs
 Method TestWritePartialMessage()
 {
     Set stream = ##class(dc.http.Stream).%New()
-    Set handler = ##class(dc.http.SSEHandler).GetInstance()
-    Set mock = handler.Adapter
+    Set handler = ##class(dc.http.SSEHandler).%New()
+    Set mock = ##class(tests.dc.http.MockAdapter).%New()
+    Set handler.Adapter = mock
+    Set handler.SwitchIOOnMessage = 0
+    Set stream.SSEHandler = handler
 
     // 1. Premier Write : Début du message (pas de fin de ligne)
     Do stream.Write("data: Hello")
@@ -46,7 +30,11 @@ Method TestWritePartialMessage()
 Method TestWriteSplitInternalSeparator()
 {
     Set stream = ##class(dc.http.Stream).%New()
-    Set mock = ##class(dc.http.SSEHandler).GetInstance().Adapter
+    Set handler = ##class(dc.http.SSEHandler).%New()
+    Set mock = ##class(tests.dc.http.MockAdapter).%New()
+    Set handler.Adapter = mock
+    Set handler.SwitchIOOnMessage = 0
+    Set stream.SSEHandler = handler
 
     // Envoi de la donnée et du PREMIER saut de ligne
     Do stream.Write("data: split case" _ $Char(10))
@@ -64,7 +52,11 @@ Method TestWriteSplitInternalSeparator()
 Method TestWriteWindowsCRLF()
 {
     Set stream = ##class(dc.http.Stream).%New()
-    Set mock = ##class(dc.http.SSEHandler).GetInstance().Adapter
+    Set handler = ##class(dc.http.SSEHandler).%New()
+    Set mock = ##class(tests.dc.http.MockAdapter).%New()
+    Set handler.Adapter = mock
+    Set handler.SwitchIOOnMessage = 0
+    Set stream.SSEHandler = handler
     
     // Simulation : "data: win\r\n\r\n" coupé n'importe comment
     
@@ -95,7 +87,11 @@ Method TestWriteWindowsCRLF()
 Method TestContinuousStream()
 {
     Set stream = ##class(dc.http.Stream).%New()
-    Set mock = ##class(dc.http.SSEHandler).GetInstance().Adapter
+    Set handler = ##class(dc.http.SSEHandler).%New()
+    Set mock = ##class(tests.dc.http.MockAdapter).%New()
+    Set handler.Adapter = mock
+    Set handler.SwitchIOOnMessage = 0
+    Set stream.SSEHandler = handler
     
     // On simule un flux type ChatGPT reçu octet par octet ou presque
     // Message 1: "data: A"

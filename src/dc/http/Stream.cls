@@ -2,6 +2,8 @@
 Class dc.http.Stream Extends %Stream.GlobalBinary
 {
 
+Property SSEHandler As dc.http.SSEHandler;
+
 Method Write(data As %String = "") As %Status
 {
     Do ..Notify(data)
@@ -16,7 +18,8 @@ Method WriteLine(data As %String = "") As %Status
 
 Method Notify(data As %String) As %Status
 {
-    Return ##class(dc.http.SSEHandler).Notify($ZConvert(data, "I", "UTF8"))
-}
+    Return:'$IsObject(..SSEHandler) $$$OK
+    Return ..SSEHandler.BufferProcessing($ZConvert(data, "I", "UTF8"))
 
+}
 }

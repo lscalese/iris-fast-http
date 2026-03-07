@@ -18,35 +18,38 @@ Property HttpRequest As %Net.HttpRequest [ InitialExpression = {##class(%Net.Htt
 
 Property HttpResponse As %Net.HttpResponse [ Calculated ];
 
+Property ResponseStream As %RawString;
+
 /// Ex: Set client = ##class(dc.http.FastHTTP).%New("url=http://example.com/api,Header_Authorization=Bearer <yourkey>")
-Method %OnNew(config As %String = "") As %Status
+Method %OnNew(config As %String = "", responseStream As %Stream.GlobalBinary = "") As %Status
 {
+    Set ..ResponseStream = responseStream
     Return ..ApplyConfig(config)
 }
 
-ClassMethod DirectGet(config As %String, body = "", Output client As dc.http.FastHTTP) As %DynamicObject
+ClassMethod DirectGet(config As %String, body = "", Output client As dc.http.FastHTTP, responseStream As %Stream.GlobalBinary = "") As %DynamicObject
 {
-    Return ..DirectSend("GET", config, body, .client)
+    Return ..DirectSend("GET", config, body, .client, responseStream)
 }
 
-ClassMethod DirectDelete(config As %String, body = "", Output client As dc.http.FastHTTP) As %DynamicObject
+ClassMethod DirectDelete(config As %String, body = "", Output client As dc.http.FastHTTP, responseStream As %Stream.GlobalBinary = "") As %DynamicObject
 {
-    Return ..DirectSend("DELETE", config, body, .client)
+    Return ..DirectSend("DELETE", config, body, .client, responseStream)
 }
 
-ClassMethod DirectPost(config As %String, body = "", Output client As dc.http.FastHTTP) As %DynamicObject
+ClassMethod DirectPost(config As %String, body = "", Output client As dc.http.FastHTTP, responseStream As %Stream.GlobalBinary = "") As %DynamicObject
 {
-    Return ..DirectSend("POST", config, body, .client)
+    Return ..DirectSend("POST", config, body, .client, responseStream)
 }
 
-ClassMethod DirectPut(config As %String, body = "", Output client As dc.http.FastHTTP) As %DynamicObject
+ClassMethod DirectPut(config As %String, body = "", Output client As dc.http.FastHTTP, responseStream As %Stream.GlobalBinary = "") As %DynamicObject
 {
-    Return ..DirectSend("PUT", config, body, .client)
+    Return ..DirectSend("PUT", config, body, .client, responseStream)
 }
 
-ClassMethod DirectSend(method As %String, config As %String, body = "", Output client As dc.http.FastHTTP) As %DynamicObject
+ClassMethod DirectSend(method As %String, config As %String, body = "", Output client As dc.http.FastHTTP, responseStream As %Stream.GlobalBinary = "") As %DynamicObject
 {
-    Set client = ..%New(config)
+    Set client = ..%New(config, responseStream)
     Return client.SendRequest($$$UPPER(method), "", body)
 }
 
@@ -81,8 +84,8 @@ Method ApplyConfig(configString As %String = "") As %Status
         Do ..CreateSSLConfiguration(..HttpRequest.SSLConfiguration)
     }
 
-    If config.%Get("stream_mode") {
-        Set ..HttpRequest.ResponseStream = ##class(dc.http.Stream).%New()
+    If $IsObject(..ResponseStream) {
+        Set ..HttpRequest.ResponseStream = ..ResponseStream
     }
 
     Return:'$IsObject(config.headers) $$$OK
@@ -123,7 +126,7 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
             Continue
         }
         
-        If ",url,stream_mode," [ ($$$f(",{lowerKey},")) {
+        If ",url," [ ($$$f(",{lowerKey},")) {
             Do config.%Set(lowerKey, val)
             Continue
         }
@@ -135,14 +138,6 @@ ClassMethod ParseConfigString(pConfigStr As %String) As %DynamicObject
         }
         
         Do config.%Set(httpRequestProperty, val)
-    }
-
-    If config.%Get("stream_mode") = "true" {
-        Do config.%Set("stream_mode", 1) ; convert boolean "true text" to boolean value 1
-    }
-
-    If config.%Get("stream_mode") = "false" {
-        Do config.%Set("stream_mode", 0) ; convert boolean "false text" to boolean value 0
     }
     
     If headers.%Size() > 0 {
