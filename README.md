@@ -54,7 +54,6 @@ Format: `"key=value,key2=value2"`
 Supported keys:
 - `url`: The full URL to send the request to.
 - `Header_<Name>`: Sets a request header. Ex: `Header_Authorization=Bearer 123`
-- `stream_mode`: Resource ID for streaming responses (see Advanced Usage, will be explained later /*todo*/).
 
 Example with headers:
 
@@ -71,3 +70,41 @@ The `Direct...` methods also return the `client` instance as an output parameter
 Set response = ##class(dc.http.FastHTTP).DirectGet("url=https://httpbin.org/get", , .client)
 Write "Status Code: ", client.HttpRequest.HttpResponse.StatusCode
 ```
+
+### Server-Sent Events (SSE) / AI Streaming
+
+FastHTTP has built-in support for Server-Sent Events (SSE), making it extremely easy to consume streaming APIs like OpenAI, Anthropic, or any LLM in real-time. Instead of waiting for the full response to complete, you can process chunks on the fly.
+
+To consume an SSE stream, follow these steps:
+1. Create a `dc.http.Stream` which will hold the incoming bits.
+2. Link it to a `dc.http.SSEHandler`, configured with an Adapter (a class extending `dc.http.SSEAdapter`).
+3. Pass your stream to the FastHTTP request.
+
+```objectscript
+// 1. Create a Stream that will receive the SSE chunks as they arrive
+Set stream = ##class(dc.http.Stream).%New()
+
+// 2. Create an Adapter to process each SSE Message (FastHTTP provides some basic ones, or you can create your own extending `dc.http.SSEAdapter`)
+//    Set adapter = ##class(dc.http.SSEBasicAdapter).%New()
+// For ChatGPT-like formatting, you could use: ##class(dc.http.SSEChatConsoleAdapter).%New()
+Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
+
+// 3. Create the SSE Handler and link the adapter
+Set handler = ##class(dc.http.SSEHandler).%New(adapter)
+Set stream.SSEHandler = handler
+
+// 4. Set up your HTTP request
+Set config = "url=https://api.openai.com/v1/chat/completions,Header_Authorization=Bearer <YOUR_TOKEN>,Header_Accept=text/event-stream"
+Set body = {
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Tell me a short story."}],
+    "stream": true
+}
+
+// 5. Fire the request - The adapter's OnMessage() will be triggered in real-time!
+Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client, stream)
+```
+
+To parse the stream your own way, simply create a class extending `dc.http.SSEAdapter` and override the `OnMessage(message As dc.http.SSEMessage) As %Status` method.
+
+**Coming soon:** a LocalAI github repository to test it in local easily.
