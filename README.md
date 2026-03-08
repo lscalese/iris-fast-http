@@ -114,10 +114,7 @@ If you have started the workspace using Docker, a small `sse-mock` service is in
 Once the mock server is running, you can test the SSE behavior in the IRIS terminal with the following snippet:
 
 ```objectscript
-Set stream = ##class(dc.http.Stream).%New()
-Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
-Set handler = ##class(dc.http.SSEHandler).%New(adapter)
-Set stream.SSEHandler = handler
+Set stream = ##class(dc.http.SSEChatConsoleAdapter).GetStream()
 Set config = "url=http://sse-mock:5000/stream,timeout=10"
 Set response = ##class(dc.http.FastHTTP).DirectGet(config, , , stream)
 ```
