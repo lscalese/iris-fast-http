@@ -107,4 +107,17 @@ Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client, strea
 
 To parse the stream your own way, simply create a class extending `dc.http.SSEAdapter` and override the `OnMessage(message As dc.http.SSEMessage) As %Status` method.
 
-**Coming soon:** a LocalAI github repository to test it in local easily.
+### Testing with the Mock Server
+
+If you have started the workspace using Docker, a small `sse-mock` service is included in the `docker-compose.yml`. You can use it to simulate an AI streaming response without needing a real API key or internet connection.
+
+Once the mock server is running, you can test the SSE behavior in the IRIS terminal with the following snippet:
+
+```objectscript
+Set stream = ##class(dc.http.Stream).%New()
+Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
+Set handler = ##class(dc.http.SSEHandler).%New(adapter)
+Set stream.SSEHandler = handler
+Set config = "url=http://sse-mock:5000/stream,timeout=10"
+Set response = ##class(dc.http.FastHTTP).DirectGet(config, , , stream)
+```
