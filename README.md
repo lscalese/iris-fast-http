@@ -80,24 +80,7 @@ To consume an SSE stream, follow these steps:
 2. Link it to a `dc.http.SSEHandler`, configured with an Adapter (a class extending `dc.http.SSEAdapter`).
 3. Pass your stream to the FastHTTP request.
 
-```objectscript
-// Create a Stream, the handler instance and attach the SSEBasicAdapter:
-// Set stream = ##class(dc.http.SSEBasicAdapter).GetStream()
-// For ChatGPT-like formatting, you could use: dc.http.SSEChatConsoleAdapter
-Set stream = ##class(dc.http.SSEChatConsoleAdapter).GetStream()
-Set config = "url=https://api.openai.com/v1/chat/completions,Header_Authorization=Bearer <YOUR_TOKEN>,Header_Accept=text/event-stream"
-Set body = {
-    "model": "gpt-4",
-    "messages": [{"role": "user", "content": "Tell me a short story."}],
-    "stream": true
-}
-// Fire the request - The adapter's OnMessage() will be triggered in real-time!
-Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client, stream)
-```
-
-To parse the stream your own way, simply create a class extending `dc.http.SSEAdapter` and override the `OnMessage(message As dc.http.SSEMessage) As %Status` method.
-
-### Testing with the Mock Server
+#### Testing with the Mock Server
 
 If you have started the workspace using Docker, a small `sse-mock` service is included in the `docker-compose.yml`. You can use it to simulate an AI streaming response without needing a real API key or internet connection.
 
@@ -107,4 +90,15 @@ Once the mock server is running, you can test the SSE behavior in the IRIS termi
 Set stream = ##class(dc.http.SSEChatConsoleAdapter).GetStream()
 Set config = "url=http://sse-mock:5000/stream,timeout=10"
 Set response = ##class(dc.http.FastHTTP).DirectGet(config, , , stream)
+```
+
+### Testing with OpenAI
+
+If you have an access to OpenAI API or LLM API compatible, you can use the following template: 
+
+```objectscript
+Set stream = ##class(dc.http.SSEChatConsoleAdapter).GetStream()
+Set config = "url=https://api.openai.com/v1/chat/completions,Header_Authorization=Bearer <YOUR_TOKEN>,Header_Accept=text/event-stream"
+Set body = {"model": "gpt-4", "messages": [{"role": "user", "content": "Tell me a short story."}], "stream": true }
+Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client, stream)
 ```
