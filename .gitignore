@@ -2,4 +2,4 @@
 .env
 .private_notes.md
 SSE-fr.md
-./out/
+out/
