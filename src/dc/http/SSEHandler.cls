@@ -71,6 +71,16 @@ Method BufferProcessing(data As %String) As %Status
     Return sc
 }
 
+Method Flush() As %Status
+{
+    If ..Buffer = "" {
+        Return $$$OK
+    }
+    Set sc = ..Process(..Buffer)
+    Set ..Buffer = ""
+    Return sc
+}
+
 Method Process(messageString As %String) As %Status
 {
     Set message = ##class(dc.http.SSEMessage).%New(messageString, ..LineSeparator)
@@ -104,6 +114,7 @@ Method SafeAdapterCall(message As dc.http.SSEMessage) As %Status
 Method Reset()
 {
     Do ..Messages.Clear()
+    Set ..Buffer = ""
     Do:$IsObject(..Adapter) ..Adapter.Reset()
 }
 

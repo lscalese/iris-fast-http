@@ -255,6 +255,9 @@ ClassMethod ProcessResponse(httpResponse As %Net.HttpResponse) As %DynamicObject
     Set responseData = httpResponse.Data
     // Tente de retourner un DynamicObject s'il s'agit de JSON, sinon retourne un objet avec les propriétés de base et les données brutes
     Try {
+        If responseData.%IsA("dc.http.Stream"), $IsObject(responseData.SSEHandler) {
+           Do responseData.SSEHandler.Flush() // Ensure all SSE messages are processed
+        }
         Do responseData.Rewind()
         Set data = {}.%FromJSON(responseData)
     } Catch ex {
