@@ -1,0 +1,76 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+
+package dc.http {
+
+  class Stream {
+    + SSEHandler : SSEHandler
+    + Write(data: String) : Status
+    + WriteLine(data: String) : Status
+    + Notify(data: String) : Status
+  }
+
+  class SSEHandler {
+    + Adapter : SSEAdapter
+    + Messages : List<SSEMessage>
+    + Buffer : String
+    + BufferSizeAutoFlushThreshold : Integer
+    + MaxBufferSize : Integer
+    + BufferProcessing(data: String) : Status
+    + Process(messageString: String) : Status
+    + SafeAdapterCall(message: SSEMessage) : Status
+    + Reset()
+  }
+
+  class SSEMessage {
+    + Event : String
+    + Id : String
+    + Retry : String
+    + Data : List<String>
+    + Raw : String
+    + LineSeparator : String
+    + Parse(message: String) : Status
+    + {static} IsComment(line: String, out comment: String) : Boolean
+    + {static} IsData(line: String, out data: String) : Boolean
+    + {static} IsEvent(line: String, out eventType: String) : Boolean
+    + {static} IsId(line: String, out id: String) : Boolean
+    + {static} IsRetry(line: String, out retry: String) : Boolean
+    + {static} IsValidJSONData(data: String, out jsonData: DynamicObject) : Boolean
+  }
+
+  abstract class SSEAdapter {
+    + {static} GetStream() : Stream
+    + {abstract} OnMessage(item: SSEMessage) : Status
+    + Reset()
+  }
+
+  class SSEBasicAdapter {
+    + OnMessage(message: SSEMessage) : Status
+  }
+
+  class SSEChatConsoleAdapter {
+    + ContentResponse : String
+    + LastChunk : DynamicObject
+    + NewLineAsCRLF : Boolean
+    + OnMessage(message: SSEMessage) : Status
+    + GetAssistantMessage() : DynamicObject
+    + Reset()
+  }
+
+}
+
+' Relationships (Composition and Inheritance)
+Stream "1" *-- "1" SSEHandler : contains >
+SSEHandler "1" *-- "1" SSEAdapter : delegates to >
+SSEHandler "1" *-- "*" SSEMessage : stores/parses >
+
+SSEAdapter <|-- SSEBasicAdapter
+SSEAdapter <|-- SSEChatConsoleAdapter
+
+' Dependency links (Usage)
+SSEAdapter ..> SSEMessage : receives
+SSEBasicAdapter ..> SSEMessage : receives
+SSEChatConsoleAdapter ..> SSEMessage : receives
+
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+autonumber
+
+participant "Your Code" as App
+participant "SSEChatConsoleAdapter" as Adapter
+participant "dc.http.FastHTTP" as FastHTTP
+participant "API (OpenAI)" as API
+
+App -> Adapter: GetStream()
+Adapter --> App: Returns `stream` object
+
+note over App
+  Prepares JSON body
+  (with "stream": true)
+end note
+
+App -> FastHTTP: DirectPost(url, body, .client, stream)
+FastHTTP -> API: HTTP POST Request
+
+note right of FastHTTP: Stream Mode activated
+
+loop For each SSE (Server-Sent Event)
+    API --> FastHTTP: Data chunk (text/event-stream)
+    FastHTTP -> Adapter: Transmits chunk to `stream`
+    note over Adapter
+      Prints content
+      to console
+    end note
+end
+
+API --> FastHTTP: End of connection
+FastHTTP --> App: Returns final response
+
+@enduml
