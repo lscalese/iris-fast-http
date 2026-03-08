@@ -130,4 +130,28 @@ Method TestDirectDelete()
     }
 }
 
+Method TestSSERealStream()
+{
+    If ..#RUNINTEGRATION = 0 {
+        Do $$$LogMessage("Skipping TestSSERealStream because integration tests are disabled (^dc.http(""RUNINTEGRATION"") = 0)")
+        Return
+    }
+    
+    Set stream = ##class(dc.http.Stream).%New()
+    Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
+    Set handler = ##class(dc.http.SSEHandler).%New(adapter)
+    Set stream.SSEHandler = handler
+    
+    // On appelle notre container mock interne
+    Set config = "url=http://sse-mock:5000/stream,timeout=10"
+    
+    Try {
+        Set response = ##class(dc.http.FastHTTP).DirectGet(config, , , stream)
+        
+        Do $$$AssertEquals(adapter.ContentResponse, "Hi, How can I help you today?", "Le flux complet a été reconstitué via l'adapter")
+    } Catch ex {
+        Do $$$AssertStatusOK(ex.AsStatus(), "The SSE stream should not throw an exception: " _ $SYSTEM.Status.GetErrorText(ex.AsStatus()))
+    }
+}
+
 }
