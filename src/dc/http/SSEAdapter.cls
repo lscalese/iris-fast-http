@@ -10,4 +10,13 @@ Method Reset()
 {
 }
 
+ClassMethod GetStream() As dc.http.Stream
+{
+    Set stream = ##class(dc.http.Stream).%New()
+    Set adapter = ..%New()
+    Set handler = ##class(dc.http.SSEHandler).%New(adapter)
+    Set stream.SSEHandler = handler
+    Return stream
+}
+
 }

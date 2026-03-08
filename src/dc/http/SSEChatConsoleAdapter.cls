@@ -44,5 +44,4 @@ Method Reset()
     Set ..ContentResponse = ""
     Set ..LastChunk = ""
 }
-
 }
