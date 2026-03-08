@@ -81,27 +81,17 @@ To consume an SSE stream, follow these steps:
 3. Pass your stream to the FastHTTP request.
 
 ```objectscript
-// 1. Create a Stream that will receive the SSE chunks as they arrive
-Set stream = ##class(dc.http.Stream).%New()
-
-// 2. Create an Adapter to process each SSE Message (FastHTTP provides some basic ones, or you can create your own extending `dc.http.SSEAdapter`)
-//    Set adapter = ##class(dc.http.SSEBasicAdapter).%New()
-// For ChatGPT-like formatting, you could use: ##class(dc.http.SSEChatConsoleAdapter).%New()
-Set adapter = ##class(dc.http.SSEChatConsoleAdapter).%New()
-
-// 3. Create the SSE Handler and link the adapter
-Set handler = ##class(dc.http.SSEHandler).%New(adapter)
-Set stream.SSEHandler = handler
-
-// 4. Set up your HTTP request
+// Create a Stream, the handler instance and attach the SSEBasicAdapter:
+// Set stream = ##class(dc.http.SSEBasicAdapter).GetStream()
+// For ChatGPT-like formatting, you could use: dc.http.SSEChatConsoleAdapter
+Set stream = ##class(dc.http.SSEChatConsoleAdapter).GetStream()
 Set config = "url=https://api.openai.com/v1/chat/completions,Header_Authorization=Bearer <YOUR_TOKEN>,Header_Accept=text/event-stream"
 Set body = {
     "model": "gpt-4",
     "messages": [{"role": "user", "content": "Tell me a short story."}],
     "stream": true
 }
-
-// 5. Fire the request - The adapter's OnMessage() will be triggered in real-time!
+// Fire the request - The adapter's OnMessage() will be triggered in real-time!
 Set response = ##class(dc.http.FastHTTP).DirectPost(config, body, .client, stream)
 ```
 
