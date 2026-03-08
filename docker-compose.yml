@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    #restart: always
     environment:
       - ISC_CPF_MERGE_FILE=/home/irisowner/dev/merge.cpf
     #env_file:
@@ -20,5 +19,12 @@ services:
   # A simple HTTP service used for integration testing of the FastHTTP class
   httpbin:
     image: kennethreitz/httpbin
-    ports:
-      - "9292:80"
+
+  # A simple SSE server used for integration testing of the FastHTTP class
+  sse-mock:
+    image: python:3.9-slim
+    volumes:
+      - ./mock-server:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install flask && python sse_server.py"
