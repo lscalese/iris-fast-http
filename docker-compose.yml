@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - TZ=Europe/Paris
       - ISC_CPF_MERGE_FILE=/home/irisowner/dev/merge.cpf
     #env_file:
     #  - .env
