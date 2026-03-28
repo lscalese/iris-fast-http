@@ -9,6 +9,25 @@
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="dc.http.PKG"/>
       <UnitTest Name="/" Package="tests.dc.http" Phase="test"/>
+      <WebApplication Url="/csp/demo"
+            Path="/web"
+            DeployPath="${cspdir}demo"
+            CookiePath="/csp/demo/"
+            PasswordAuthEnabled="0"
+            UnauthenticatedEnabled="1"
+            Recurse="1"
+            MatchRoles=":%DB_${Namespace}"
+            DispatchClass="dc.http.DemoREST"/>
+      <WebApplication Url="/csp/ui/demo"
+            Path="${cspdir}ui/demo"
+            ServeFiles="1"
+            CookiePath="/csp/ui/demo/"
+            PasswordAuthEnabled="0"
+            UnauthenticatedEnabled="1"
+            AuthenticationMethods="64" 
+            Recurse="1"
+            MatchRoles=":%DB_${Namespace}"/>
+      <FileCopy Name="web/" Target="${cspdir}ui/demo/"/>
     </Module>
   </Document>
 </Export>

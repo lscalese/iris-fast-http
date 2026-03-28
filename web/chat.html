@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Chat Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+            align-items: center;
+        }
+        #main-wrapper {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background-color: #fff;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #007bff;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-message {
+            align-self: flex-start;
+            background-color: #e9e9eb;
+            color: #333;
+            border-bottom-left-radius: 2px;
+            white-space: pre-wrap;
+        }
+        #input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            font-size: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        .welcome-msg {
+            text-align: center;
+            color: #888;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-wrapper">
+        <header>
+            <h1>LLM Assistant (Test)</h1>
+        </header>
+
+        <div id="chat-container">
+            <div class="welcome-msg" id="welcome-msg">
+                <h2>Ready for testing?</h2>
+                <p>Type your question below to start the conversation.</p>
+            </div>
+        </div>
+
+        <div id="input-container">
+            <div class="input-group">
+                <input type="text" id="user-input" placeholder="Type your message here..." autocomplete="off">
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration de l'URL de base
+        const BASE_URL = window.location.origin + "/csp/demo";
+        const ENDPOINT = "/v1/chat/completions";
+
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const welcomeMsg = document.getElementById('welcome-msg');
+
+        // Historique des messages pour la session de conversation
+        let messageHistory = [];
+
+        function appendMessage(role, text) {
+            if (welcomeMsg) welcomeMsg.style.display = 'none';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}-message`;
+            msgDiv.textContent = text;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return msgDiv;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Affichage message utilisateur
+            appendMessage('user', message);
+            userInput.value = '';
+
+            // Ajouter à l'historique
+            messageHistory.push({ role: "user", content: message });
+            
+            // Préparation du message assistant (vide au début)
+            const aiMsgDiv = appendMessage('ai', '');
+            
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${BASE_URL}${ENDPOINT}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o",
+                        messages: messageHistory, // Envoi de l'historique complet
+                        stream: true // Activation du streaming
+                    })
+                });
+
+                if (!response.ok) throw new Error('Network error');
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                let done = false;
+                let fullAiResponse = "";
+
+                while (!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    const chunkValue = decoder.decode(value);
+                    
+                    // Process Server Sent Events (SSE)
+                    // OpenAI standard format is "data: {...}"
+                    const lines = chunkValue.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6).trim();
+                            if (data === '[DONE]') break;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices[0]?.delta?.content || "";
+                                fullAiResponse += content;
+                                aiMsgDiv.textContent = fullAiResponse;
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            } catch (e) {
+                                console.error("JSON parsing error", e, data);
+                            }
+                        }
+                    }
+                }
+
+                // Ajouter la réponse complète de l'IA à l'historique
+                if (fullAiResponse) {
+                    messageHistory.push({ role: "assistant", content: fullAiResponse });
+                }
+
+            } catch (error) {
+                aiMsgDiv.textContent = "Error: " + error.message;
+                aiMsgDiv.style.color = 'red';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

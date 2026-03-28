@@ -9,10 +9,11 @@ services:
     #  - .env
     ports:
       - 1972
-      - 52773
+      - 42600:52773
       - 53773
     volumes:
       - ./:/home/irisowner/dev
+      - ./web:/usr/irissys/csp/ui/demo
     depends_on:
       - httpbin
 
