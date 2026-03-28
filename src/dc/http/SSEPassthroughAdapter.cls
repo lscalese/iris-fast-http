@@ -3,7 +3,7 @@ Class dc.http.SSEPassthroughAdapter Extends dc.http.SSEAdapter
 
 Method OnMessage(item As dc.http.SSEMessage) As %Status
 {
-    Write item.Raw,!
+    Write item.Raw,$Char(10,10)
     If $IsObject($Get(%response)) {
         Do %response.Flush()
     }
