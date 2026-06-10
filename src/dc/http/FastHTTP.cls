@@ -288,7 +288,7 @@ Method HandleEntityBody(pBody = "") As %Status [ Internal ]
     }
 
     If pBody.%IsA("%DynamicObject") {
-        If ..HttpRequest.GetHeader("Content-Type") = "" {
+        If ..HttpRequest.ContentType = "" {
             Do ..HttpRequest.SetHeader("Content-Type", "application/json")
         }
         Do pBody.%ToJSON(..HttpRequest.EntityBody)
