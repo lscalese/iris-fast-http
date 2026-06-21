@@ -303,6 +303,8 @@ Method HandleEntityBody(pBody = "") As %Status [ Internal ]
 
 ClassMethod CreateSSLConfiguration(Name As %String = "DefaultSSL") As %Status
 {
+    New $roles 
+    Set $roles = "%ALL"
     New $namespace
     Set $namespace="%SYS", sc = $$$OK
     If '##class(Security.SSLConfigs).Exists(Name) {

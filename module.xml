@@ -16,7 +16,7 @@
             PasswordAuthEnabled="0"
             UnauthenticatedEnabled="1"
             Recurse="1"
-            MatchRoles=":%DB_${Namespace}"
+            MatchRoles=":%DB_${Namespace}:%All"
             DispatchClass="dc.http.DemoREST"/>
       <WebApplication Url="/csp/ui/demo"
             Path="${cspdir}ui/demo"

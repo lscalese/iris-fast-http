@@ -13,14 +13,46 @@ Parameter IgnoreWrites = 0;
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
-    <Route Url="/test" Method="GET" Call="Test"/>
+    <Route Url="/ping" Method="GET" Call="Ping"/>
+    <Route Url="/sse/test" Method="GET" Call="Test"/>
     <Route Url="/v1/chat/completions" Method="POST" Call="ChatCompletions"/>
 </Routes>
 }
 
-ClassMethod Test()
+ClassMethod Ping() As %Status
 {
     Write $ZVersion
+    Return $$$OK
+}
+
+ClassMethod Test() As %Status
+{
+    Set %response.AllowOutputFlush = 1
+    Set %response.ContentType = "text/event-stream"
+    Do %response.SetHeader("Cache-Control", "no-cache")
+    Do %response.SetHeader("Connection", "keep-alive")
+
+    // The CSP Gateway buffers output until ~4KB before forwarding to the browser.
+    // Sending a padding comment upfront saturates the buffer so subsequent events
+    // are delivered immediately without waiting for it to fill.
+    Write ": ", $Justify("", 4096), $Char(10)
+    Do %response.Flush()
+
+    For content = "Hel", "lo", " world" {
+        Try {
+            Write "data: ", {"id":($Increment(i)),"choices":[{"delta":{"content":(content)}}]}.%ToJSON(), $Char(10,10)
+            Do %response.Flush()
+            Hang 1
+        } Catch ex {
+            Quit
+        }
+    }
+    Try {
+        Write "event: done", $Char(10)
+        Write "data: [DONE]", $Char(10,10)
+        Do %response.Flush()
+    } Catch ex {}
+
     Return $$$OK
 }
 
